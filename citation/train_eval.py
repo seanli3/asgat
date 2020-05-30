@@ -62,6 +62,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
         best_val_acc = float(0)
         test_acc = 0
         val_loss_history = []
+        model_test_loss = 0
+        model_test_acc = 0
 
         for epoch in range(1, epochs + 1):
             train(model, optimizer, data)
@@ -75,7 +77,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
             if eval_info['val_loss'] <= best_val_loss or eval_info['val_acc'] >= best_val_acc:
                 if eval_info['val_loss'] <= best_val_loss and eval_info['val_acc'] >= best_val_acc:
-                    torch.save(model.state_dict(), dataset.name + '_best_model.pkl')
+                    model_test_loss = eval_info['test_loss']
+                    model_test_acc = eval_info['test_acc']
                 best_val_loss = min(eval_info['val_loss'], best_val_loss)
                 test_acc = max(eval_info['test_acc'], best_val_acc)
 
@@ -96,11 +99,9 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
 
-    model.load_state_dict(torch.load(dataset.name + '_best_model.pkl'))
-    best_eval_info = evaluate(model, data)
     print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Duration: {:.3f}'.
-          format(best_eval_info['test_loss'],
-                 best_eval_info['test_acc'],
+          format(model_test_loss,
+                 model_test_acc,
                  duration.mean().item()))
 
 
