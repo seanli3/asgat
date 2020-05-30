@@ -59,6 +59,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
         t_start = time.perf_counter()
 
         best_val_loss = float('inf')
+        best_val_acc = float(0)
         test_acc = 0
         val_loss_history = []
 
@@ -72,9 +73,11 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
             if logger is not None:
                 logger(eval_info)
 
-            if eval_info['val_loss'] < best_val_loss:
-                best_val_loss = eval_info['val_loss']
-                test_acc = eval_info['test_acc']
+            if eval_info['val_loss'] <= best_val_loss or eval_info['val_acc'] >= best_val_acc:
+                if eval_info['val_loss'] <= best_val_loss and eval_info['val_acc'] >= best_val_acc:
+                    torch.save(model.state_dict(), dataset.name + '_best_model.pkl')
+                best_val_loss = min(eval_info['val_loss'], best_val_loss)
+                test_acc = max(eval_info['test_acc'], best_val_acc)
 
             val_loss_history.append(eval_info['val_loss'])
             if early_stopping > 0 and epoch > epochs // 2:
@@ -93,10 +96,11 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
 
-    print('Val Loss: {:.4f}, Test Accuracy: {:.3f} ± {:.3f}, Duration: {:.3f}'.
-          format(loss.mean().item(),
-                 acc.mean().item(),
-                 acc.std().item(),
+    model.load_state_dict(torch.load(dataset.name + '_best_model.pkl'))
+    best_eval_info = evaluate(model, data)
+    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Duration: {:.3f}'.
+          format(best_eval_info['test_loss'],
+                 best_eval_info['test_acc'],
                  duration.mean().item()))
 
 
