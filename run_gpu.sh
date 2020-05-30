@@ -29,4 +29,4 @@ pip3 install --user torch-spline-conv==1.2.0+cu101 -f https://pytorch-geometric.
 pip3 install --user torch-geometric
 
 
-python3 decimation $LINE
+python3 decimation.py $LINE
