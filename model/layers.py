@@ -53,6 +53,8 @@ class GraphSpectralFilterLayer(nn.Module):
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.filter_kernel.reset_parameters()
+        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels)
+        self.filter = Filter(self.G, self.filter_kernel, chebyshev_order=self.chebyshev_order)
 
         if self.pre_training:
             itersine = pygsp.filters.Itersine(self.G, self.out_channels)
