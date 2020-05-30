@@ -28,6 +28,8 @@ parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 args = parser.parse_args()
 
+print(args)
+
 
 rseed(args.seed)
 nseed(args.seed)
