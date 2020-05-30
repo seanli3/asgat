@@ -14,12 +14,12 @@ parser.add_argument('--runs', type=int, default=1)
 parser.add_argument('--epochs', type=int, default=1000)
 parser.add_argument('--alpha', type=float, default=0.2)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
-parser.add_argument('--lr', type=float, default=0.005)
+parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--weight_decay', type=float, default=0.0005)
 parser.add_argument('--early_stopping', type=int, default=10)
-parser.add_argument('--hidden', type=int, default=16)
-parser.add_argument('--heads', type=int, default=8)
-parser.add_argument('--dropout', type=float, default=0.8)
+parser.add_argument('--hidden', type=int, default=64)
+parser.add_argument('--heads', type=int, default=18)
+parser.add_argument('--dropout', type=float, default=0.9)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
@@ -29,14 +29,11 @@ parser.add_argument('--node_feature_dropout', type=float, default=0)
 args = parser.parse_args()
 
 
-
 rseed(args.seed)
 nseed(args.seed)
 torch.manual_seed(args.seed)
 
 args.cuda = args.cuda and torch.cuda.is_available()
-
-print(args.cuda)
 
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
