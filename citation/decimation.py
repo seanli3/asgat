@@ -29,11 +29,14 @@ parser.add_argument('--node_feature_dropout', type=float, default=0)
 args = parser.parse_args()
 
 
+
 rseed(args.seed)
 nseed(args.seed)
 torch.manual_seed(args.seed)
 
 args.cuda = args.cuda and torch.cuda.is_available()
+
+print(args.cuda)
 
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
