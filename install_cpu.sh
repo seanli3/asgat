@@ -9,4 +9,4 @@ pip3 install --user torch-cluster==1.5.4+cpu -f https://pytorch-geometric.com/wh
 pip3 install --user torch-spline-conv==1.2.0+cpu -f https://pytorch-geometric.com/whl/torch-1.5.0.html
 pip3 install --user torch-geometric
 python3 setup.py install --user
-python3 fetch_data.py
+python3 citation/fetch_data.py
