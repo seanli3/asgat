@@ -73,6 +73,8 @@ class Net(torch.nn.Module):
 
 dataset = get_planetoid_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
                                 node_feature_dropout=args.node_feature_dropout)
+if args.cuda:
+    dataset.data.to('cuda')
 
 permute_masks = random_planetoid_splits if args.random_splits else None
 run(dataset, Net(dataset), args.runs, args.epochs, args.lr, args.weight_decay,
