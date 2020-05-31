@@ -19,7 +19,7 @@ max_acc = max(acc.values())
 print(max_acc)
 
 for fname in acc:
-    if acc[fname] >= max_acc - 0.001:
+    if acc[fname] >= max_acc:
         print(fname)
         lines = collections.deque(14*[''], 14)
         with open(fname, "r") as file:
