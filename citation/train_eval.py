@@ -64,6 +64,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
         val_loss_history = []
         model_test_loss = 0
         model_test_acc = 0
+        model_val_loss = 0
+        model_val_acc = 0
 
         for epoch in range(1, epochs + 1):
             train(model, optimizer, data)
@@ -79,6 +81,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
                 if eval_info['val_loss'] <= best_val_loss and eval_info['val_acc'] >= best_val_acc:
                     model_test_loss = eval_info['test_loss']
                     model_test_acc = eval_info['test_acc']
+                    model_val_loss = eval_info['val_loss']
+                    model_val_acc = eval_info['val_acc']
                 best_val_loss = min(eval_info['val_loss'], best_val_loss)
                 test_acc = max(eval_info['test_acc'], best_val_acc)
 
@@ -99,9 +103,11 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
 
-    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Duration: {:.3f}'.
+    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Duration: {:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}'.
           format(model_test_loss,
                  model_test_acc,
+                 model_val_loss,
+                 model_val_acc,
                  duration.mean().item()))
 
 
