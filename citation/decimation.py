@@ -17,9 +17,9 @@ parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--weight_decay', type=float, default=0.0005)
 parser.add_argument('--early_stopping', type=int, default=10)
-parser.add_argument('--hidden', type=int, default=64)
-parser.add_argument('--heads', type=int, default=18)
-parser.add_argument('--dropout', type=float, default=0.9)
+parser.add_argument('--hidden', type=int, default=24)
+parser.add_argument('--heads', type=int, default=8)
+parser.add_argument('--dropout', type=float, default=0.95)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
@@ -77,10 +77,11 @@ class Net(torch.nn.Module):
         return F.log_softmax(x, dim=1)
 
 
-dataset = get_planetoid_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout)
+dataset = get_planetoid_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
+                                node_feature_dropout=args.node_feature_dropout)
 if args.cuda:
     dataset.data.to('cuda')
 
 permute_masks = random_planetoid_splits if args.random_splits else None
 run(dataset, Net(dataset), args.runs, args.epochs, args.lr, args.weight_decay,
-    args.early_stopping, permute_masks, node_feature_dropout=args.node_feature_dropout)
+    args.early_stopping, permute_masks)

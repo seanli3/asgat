@@ -2,7 +2,6 @@ from __future__ import division
 
 import time
 
-from random import sample
 import torch
 import torch.nn.functional as F
 from torch import tensor
@@ -42,7 +41,7 @@ def random_planetoid_splits(data, num_classes):
 
 
 def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
-        permute_masks=None, logger=None, node_feature_dropout=0):
+        permute_masks=None, logger=None):
 
     val_losses, accs, durations = [], [], []
     for _ in range(runs):
@@ -70,10 +69,10 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
         for epoch in range(1, epochs + 1):
             train(model, optimizer, data)
-            eval_info = evaluate(model, data, node_feature_dropout)
+            eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            if epoch % 10 == 0:
-                print(eval_info)
+            # if epoch % 100 == 0:
+            #     print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -104,7 +103,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
 
-    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Duration: {:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}'.
+    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}, Duration: {:.3f}'.
           format(model_test_loss,
                  model_test_acc,
                  model_val_loss,
@@ -121,24 +120,18 @@ def train(model, optimizer, data):
     optimizer.step()
 
 
-def evaluate(model, data, node_feature_dropout):
+def evaluate(model, data):
     model.eval()
-    data_val = data
-    if node_feature_dropout:
-        num_nodes = data.num_nodes
-        drop_indices = sample(range(num_nodes), int(node_feature_dropout * num_nodes))
-        print('Node feature dropout rate: {:.4f}'.format(len(drop_indices) / num_nodes))
-        data_val.x = data.x.index_fill(0, torch.tensor(drop_indices), 0)
 
     with torch.no_grad():
-        logits = model(data_val)
+        logits = model(data)
 
     outs = {}
     for key in ['train', 'val', 'test']:
-        mask = data_val['{}_mask'.format(key)]
-        loss = F.nll_loss(logits[mask], data_val.y[mask]).item()
+        mask = data['{}_mask'.format(key)]
+        loss = F.nll_loss(logits[mask], data.y[mask]).item()
         pred = logits[mask].max(1)[1]
-        acc = pred.eq(data_val.y[mask]).sum().item() / mask.sum().item()
+        acc = pred.eq(data.y[mask]).sum().item() / mask.sum().item()
 
         outs['{}_loss'.format(key)] = loss
         outs['{}_acc'.format(key)] = acc
