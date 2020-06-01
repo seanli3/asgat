@@ -33,6 +33,8 @@ def get_planetoid_dataset(name, normalize_features=False, transform=None, edge_d
             dataset.data.x.index_fill_(0, torch.tensor(drop_indices), 0)
             dropped_nodes += len(drop_indices)
         print('Node feature dropout rate: {:.4f}'
-              .format(dropped_nodes/(dataset.data.test_mask.nonzero().shape[0] + dataset.data.val_mask.nonzero().shape[0])))
+              .format(dropped_nodes/(dataset.data.test_mask.nonzero().shape[0] + \
+                                     dataset.data.val_mask.nonzero().shape[0] + \
+                                     dataset.data.train_mask.nonzero().shape[0])))
 
     return dataset
