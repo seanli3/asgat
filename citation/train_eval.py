@@ -71,14 +71,15 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            # if epoch % 100 == 0:
-            #     print(eval_info)
+            if epoch % 100 == 0:
+                print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
 
             if eval_info['val_loss'] <= best_val_loss or eval_info['val_acc'] >= best_val_acc:
                 if eval_info['val_loss'] <= best_val_loss and eval_info['val_acc'] >= best_val_acc:
+                    # torch.save(model.state_dict(), './best_cora.pkl')
                     model_test_loss = eval_info['test_loss']
                     model_test_acc = eval_info['test_acc']
                     model_val_loss = eval_info['val_loss']

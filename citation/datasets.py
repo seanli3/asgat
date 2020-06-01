@@ -4,6 +4,7 @@ from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
 from torch_geometric.utils import add_self_loops, dropout_adj
 from random import sample
+from torch.nn import functional as F
 import torch
 
 
@@ -26,15 +27,9 @@ def get_planetoid_dataset(name, normalize_features=False, transform=None, edge_d
         print('Edge dropout rate: {:.4f}'.format(1 - edge_list.shape[1] / num_edges))
         dataset.data.edge_index = edge_list
     if node_feature_dropout:
-        dropped_nodes = 0
-        for mask in ['val_mask', 'test_mask', 'train_mask']:
-            node_inx = dataset.data[mask].nonzero().view(-1).tolist()
-            drop_indices = sample(node_inx, int(node_feature_dropout*len(node_inx)))
-            dataset.data.x.index_fill_(0, torch.tensor(drop_indices).cpu(), 0)
-            dropped_nodes += len(drop_indices)
-        print('Node feature dropout rate: {:.4f}'
-              .format(dropped_nodes/(dataset.data.test_mask.nonzero().shape[0] + \
-                                     dataset.data.val_mask.nonzero().shape[0] + \
-                                     dataset.data.train_mask.nonzero().shape[0])))
+        num_nodes = dataset.data.num_nodes
+        drop_indices = sample(list(range(num_nodes)), int(node_feature_dropout * num_nodes))
+        dataset.data.x.index_fill_(0, torch.tensor(drop_indices).cpu(), 0)
+        print('Node feature dropout rate: {:.4f}' .format(len(drop_indices)/num_nodes))
 
     return dataset
