@@ -27,7 +27,7 @@ def get_planetoid_dataset(name, normalize_features=False, transform=None, edge_d
         dataset.data.edge_index = edge_list
     if node_feature_dropout:
         dropped_nodes = 0
-        for mask in ['val_mask', 'test_mask']:
+        for mask in ['val_mask', 'test_mask', 'train_mask']:
             node_inx = dataset.data[mask].nonzero().view(-1).tolist()
             drop_indices = sample(node_inx, int(node_feature_dropout*len(node_inx)))
             dataset.data.x.index_fill_(0, torch.tensor(drop_indices), 0)
