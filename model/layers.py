@@ -4,6 +4,23 @@ import torch.nn.functional as F
 from .spectral_filter import Filter
 from torch_sparse import spmm
 import pygsp
+from math import sqrt
+
+
+class GaussFilter(nn.Module):
+    def __init__(self, k: int):
+        super(GaussFilter, self).__init__()
+        self.k = k
+        self.reset_parameters()
+        self.centers = torch.linspace(0, 2, k)
+
+    def reset_parameters(self):
+        self.bandwidths = nn.Parameter(torch.full([1, self.k], sqrt(2/self.k)))
+        self.gains = nn.Parameter(torch.ones(1, self.k))
+        self.amps = nn.Parameter(torch.full([1, self.k], 8.0))
+
+    def forward(self, x):
+        return self.gains.mul(torch.exp(-self.amps*(x.view(-1, 1) - self.centers).pow(2)/self.bandwidths.pow(2)))
 
 
 class AnalysisFilter(nn.Module):
@@ -33,7 +50,7 @@ class GraphSpectralFilterLayer(nn.Module):
     """
 
     def __init__(self, G, in_features, out_features, dropout, alpha, device,
-                 out_channels, chebyshev_order=16, pre_training=False):
+                 out_channels, chebyshev_order=16, pre_training=False, filter="analysis"):
         super(GraphSpectralFilterLayer, self).__init__()
         self.G = G
         self.device=device
@@ -47,12 +64,13 @@ class GraphSpectralFilterLayer(nn.Module):
         self.chebyshev_order = chebyshev_order
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.N = G.n_vertices
-        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels)
+        self.filter_type = filter
+        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
         self.filter = Filter(self.G, self.filter_kernel, chebyshev_order=self.chebyshev_order)
 
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
-        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels)
+        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
         self.filter = Filter(self.G, self.filter_kernel, chebyshev_order=self.chebyshev_order)
 
         if self.pre_training:
@@ -88,9 +106,9 @@ class GraphSpectralFilterLayer(nn.Module):
                        / N / N / len(coefficients_list)
         h_primes = []
         for coefficients in coefficients_list:
-            coefficients_mask = coefficients._values() > overall_mean
-            attention_indices = coefficients._indices().T[coefficients_mask].T
-            attention_values = self.leakyrelu(coefficients._values()[coefficients_mask])
+            coefficients_mask = coefficients.values() > overall_mean
+            attention_indices = coefficients.indices().T[coefficients_mask].T
+            attention_values = self.leakyrelu(coefficients.values()[coefficients_mask])
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
                             attention_values,

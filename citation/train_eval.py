@@ -71,7 +71,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
                 print(eval_info)
 
             if logger is not None:
@@ -84,6 +84,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
                     model_test_acc = eval_info['test_acc']
                     model_val_loss = eval_info['val_loss']
                     model_val_acc = eval_info['val_acc']
+                    # torch.save(model.state_dict(), './best_gat_cora.pkl')
                 best_val_loss = min(eval_info['val_loss'], best_val_loss)
                 test_acc = max(eval_info['test_acc'], best_val_acc)
 

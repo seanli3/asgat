@@ -195,7 +195,10 @@ class Filter(nn.Module):
         r = []
 
         for i in range(nf):
-            r.append((twf_old * 0.5 * c[0][i] + twf_cur * c[1][i]))
+            r.append(
+                torch.sparse_coo_tensor(twf_old.indices(), twf_old.values() * 0.5 * c[0][i], twf_old.shape)
+                + torch.sparse_coo_tensor(twf_cur.indices(), twf_cur.values() * c[1][i], twf_cur.shape)
+            )
 
         factor = (2 / a1 * (G.L - a2 * self.signal)).coalesce()
 
@@ -209,9 +212,9 @@ class Filter(nn.Module):
             G.n_vertices)
 
         for k in range(2, M):
-            twf_new = torch.sparse_coo_tensor(fmt_index, fmt_value, [G.n_vertices, G.n_vertices]) - twf_old
+            twf_new = torch.sparse_coo_tensor(fmt_index, fmt_value, [G.n_vertices, G.n_vertices]).coalesce() - twf_old
             for i in range(nf):
-                r[i] = twf_new * c[k, i] + r[i]
+                r[i] = torch.sparse_coo_tensor(twf_new.indices(), twf_new.values() * c[k,i], twf_new.shape) + r[i]
 
             twf_old = twf_cur
             twf_cur = twf_new
