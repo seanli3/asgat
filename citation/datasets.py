@@ -10,7 +10,7 @@ import torch
 
 def get_planetoid_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
-    dataset = Planetoid(path, name)
+    dataset = Planetoid(path, name, split="full")
 
     if transform is not None and normalize_features:
         dataset.transform = T.Compose([T.NormalizeFeatures(), transform])
