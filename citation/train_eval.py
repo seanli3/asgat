@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import tensor
 from torch.optim import Adam
-from torch_geometric.utils import f1_score
+from sklearn.metrics import f1_score
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -140,7 +140,6 @@ def evaluate(model, data):
         outs['{}_loss'.format(key)] = loss
         outs['{}_acc'.format(key)] = acc
 
-    num_classes = data.y.max().item() + 1 if data.y.dim() == 1 else data.y.size(1)
-    outs['f1_score'] = f1_score(logits, data.y, num_classes)
+    outs['f1_score'] = f1_score(data.y, logits.max(1)[1], average='micro')
 
     return outs
