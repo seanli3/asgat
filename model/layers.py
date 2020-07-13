@@ -89,9 +89,9 @@ class GraphSpectralFilterLayer(nn.Module):
                     self.filter_kernel.eval()
                     val_predictions = self.filter_kernel(val_x)
                     val_loss = F.mse_loss(input=val_predictions, target=val_y, reduction="mean")
-                    print(
-                        'kernel training epoch {} loss {} validation loss {}'.format(_, str(loss.item()),
-                                                                                     str(val_loss.item())))
+                    # print(
+                    #     'kernel training epoch {} loss {} validation loss {}'.format(_, str(loss.item()),
+                    #                                                                  str(val_loss.item())))
                     self.filter_kernel.train()
                 loss.backward()
                 k_optimizer.step()

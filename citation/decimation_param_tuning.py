@@ -32,7 +32,7 @@ args = {
 
 
 def decimation(args):
-    print(args)
+    # print(args)
     rseed(args['seed'])
     nseed(args['seed'])
     torch.manual_seed(args['seed'])
@@ -40,8 +40,8 @@ def decimation(args):
     args['cuda'] = args['cuda'] and torch.cuda.is_available()
 
 
-    if args['cuda']:
-        print("-----------------------Training on CUDA-------------------------")
+    # if args['cuda']:
+    #     print("-----------------------Training on CUDA-------------------------")
 
     if args['cuda']:
         torch.cuda.manual_seed(args['seed'])
@@ -110,8 +110,8 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'epochs', 'type': 'fixed', 'value': 400},
     {'name': 'alpha', "type": "range", "bounds": [0.0, 1.0]},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
-    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.0, 1.0], "log_scale": True},
-    {'name': 'weight_decay', 'type': 'range', "bounds": [0.0, 1.0], "log_scale": True},
+    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.000001, 1.0], "log_scale": True},
+    {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 1.0], "log_scale": True},
     {'name': 'early_stopping', 'type': 'fixed', 'value': 50},
     {'name': 'hidden', 'type': 'range', "bounds": [8, 128], "log_scale": False},
     {'name': 'heads', 'type': 'range', "bounds": [1, 32]},
