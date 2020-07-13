@@ -127,7 +127,7 @@ class GraphSpectralFilterLayer(nn.Module):
                            h).div(divisor)
             assert not torch.isnan(h_prime).any()
             h_primes.append(F.elu(h_prime))
-        return torch.cat(h_primes, dim=1)
+        return torch.cat(h_primes, dim=1), coefficients_list
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch import tensor
 from torch.optim import Adam
 from sklearn.metrics import f1_score
+# from torch_sparse import spmm
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -68,25 +69,26 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
         model_test_acc = 0
         model_val_loss = 0
         model_val_acc = 0
+        model_test_f1 = 0
 
         for epoch in range(1, epochs + 1):
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            if epoch % 10 == 0:
-                print(eval_info)
+            # if epoch % 10 == 0:
+            #     print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
 
             if eval_info['val_loss'] <= best_val_loss or eval_info['val_acc'] >= best_val_acc:
                 if eval_info['val_loss'] <= best_val_loss and eval_info['val_acc'] >= best_val_acc:
-                    # torch.save(model.state_dict(), './best_cora.pkl')
+                    # torch.save(model.state_dict(), './best_{}.pkl'.format(dataset.name))
                     model_test_loss = eval_info['test_loss']
                     model_test_acc = eval_info['test_acc']
                     model_val_loss = eval_info['val_loss']
                     model_val_acc = eval_info['val_acc']
-                    # torch.save(model.state_dict(), './best_gat_cora.pkl')
+                    model_test_f1 = eval_info['f1_score']
                 best_val_loss = min(eval_info['val_loss'], best_val_loss)
                 test_acc = max(eval_info['test_acc'], best_val_acc)
 
@@ -107,18 +109,24 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
 
-    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}, Duration: {:.3f}'.
-          format(model_test_loss,
-                 model_test_acc,
-                 model_val_loss,
-                 model_val_acc,
-                 duration.mean().item()))
+    # print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Test F1:{:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}, Duration: {:.3f}'.
+    #       format(model_test_loss,
+    #              model_test_acc,
+    #              model_test_f1,
+    #              model_val_loss,
+    #              model_val_acc,
+    #              duration.mean().item()))
+    return model_val_acc
 
 
 def train(model, optimizer, data):
     model.train()
     optimizer.zero_grad()
-    out = model(data)
+    out, filterbanks = model(data)
+    # coefficients = torch.eye(filterbanks[0].shape[0], filterbanks[0].shape[1])
+    # for c in filterbanks:
+    #     coefficients = spmm(c.indices(), c.values(), c.shape[0], c.shape[1], coefficients)
+    # discrimative_loss = coefficients.mean()
     loss = F.nll_loss(out[data.train_mask], data.y[data.train_mask])
     loss.backward()
     optimizer.step()
@@ -128,7 +136,7 @@ def evaluate(model, data):
     model.eval()
 
     with torch.no_grad():
-        logits = model(data)
+        logits, _ = model(data)
 
     outs = {}
     for key in ['train', 'val', 'test']:
