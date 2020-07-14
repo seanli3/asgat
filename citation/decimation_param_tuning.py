@@ -7,10 +7,14 @@ from random import seed as rseed
 from numpy.random import seed as nseed
 from citation import get_planetoid_dataset, run
 from ax import optimize
+import argparse
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--dataset', type=str, required=True)
+arg = parser.parse_args()
 
 args = {
-    'dataset': 'Cora',
+    'dataset': arg.dataset,
     'runs': 1,
     'epochs': 400,
     'alpha': 0.2,
