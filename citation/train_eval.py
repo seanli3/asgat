@@ -109,13 +109,13 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
     loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
 
-    # print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Test F1:{:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}, Duration: {:.3f}'.
-    #       format(model_test_loss,
-    #              model_test_acc,
-    #              model_test_f1,
-    #              model_val_loss,
-    #              model_val_acc,
-    #              duration.mean().item()))
+    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Test F1:{:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}, Duration: {:.3f}'.
+          format(model_test_loss,
+                 model_test_acc,
+                 model_test_f1,
+                 model_val_loss,
+                 model_val_acc,
+                 duration.mean().item()))
     return model_val_acc
 
 

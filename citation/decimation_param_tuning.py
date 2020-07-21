@@ -16,7 +16,7 @@ arg = parser.parse_args()
 args = {
     'dataset': arg.dataset,
     'runs': 1,
-    'epochs': 400,
+    'epochs': 300,
     'alpha': 0.2,
     'seed': 729,
     'lr': 0.005,
@@ -36,7 +36,7 @@ args = {
 
 
 def decimation(args):
-    # print(args)
+    print(args)
     rseed(args['seed'])
     nseed(args['seed'])
     torch.manual_seed(args['seed'])
@@ -111,10 +111,10 @@ def decimation(args):
 best_parameters, best_values, _, _ = optimize(
  parameters=[{'name': 'dataset', 'type': 'fixed', 'value': 'Cora'},
     {'name': 'runs', 'type': 'fixed', 'value': 1},
-    {'name': 'epochs', 'type': 'fixed', 'value': 400},
+    {'name': 'epochs', 'type': 'fixed', 'value': 200},
     {'name': 'alpha', "type": "range", "bounds": [0.0, 1.0]},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
-    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.000001, 1.0], "log_scale": True},
+    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.00001, 0.5], "log_scale": True},
     {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 1.0], "log_scale": True},
     {'name': 'early_stopping', 'type': 'fixed', 'value': 50},
     {'name': 'hidden', 'type': 'range', "bounds": [8, 128], "log_scale": False},
@@ -128,7 +128,7 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'filter', 'type': 'fixed', 'value': 'analysis'}],
     evaluation_function=decimation,
-    total_trials=200,
+    total_trials=100,
  minimize=False)
 
 print(best_parameters, best_values)
