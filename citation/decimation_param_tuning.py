@@ -16,7 +16,7 @@ arg = parser.parse_args()
 args = {
     'dataset': arg.dataset,
     'runs': 1,
-    'epochs': 300,
+    'epochs': 1000,
     'alpha': 0.2,
     'seed': 729,
     'lr': 0.005,

@@ -77,7 +77,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             if logger is not None:
                 logger(eval_info)
 
-            if eval_info['val_acc'] >= best_val_acc or eval_info['val_loss'] <= best_val_loss:
+            if eval_info['val_acc'] > best_val_acc or eval_info['val_loss'] < best_val_loss:
                 if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
                     eval_info_early_model = eval_info
                     torch.save(model.state_dict(), './best_{}.pkl'.format(dataset.name))
