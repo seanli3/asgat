@@ -106,7 +106,10 @@ class GraphSpectralFilterLayer(nn.Module):
         attentions = []
         for coefficients in coefficients_list:
             attention_indices = coefficients.indices()
-            attention_values = self.leakyrelu(coefficients.values())
+            attention_values = coefficients.values()
+            # Set nan to zero
+            attention_values[attention_values != attention_values] = 0
+            attention_values = self.leakyrelu(attention_values)
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
                             attention_values,
