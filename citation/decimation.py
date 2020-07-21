@@ -17,7 +17,7 @@ parser.add_argument('--alpha', type=float, default=0.2)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--lr', type=float, default=0.005)
 parser.add_argument('--weight_decay', type=float, default=0.0005)
-parser.add_argument('--early_stopping', type=int, default=10)
+parser.add_argument('--patience', type=int, default=10)
 parser.add_argument('--hidden', type=int, default=24)
 parser.add_argument('--heads', type=int, default=8)
 parser.add_argument('--dropout', type=float, default=0.8)
@@ -102,4 +102,4 @@ if args.cuda:
 
 permute_masks = random_planetoid_splits if args.random_splits else None
 run(dataset, Net(dataset), args.runs, args.epochs, args.lr, args.weight_decay,
-    args.early_stopping, permute_masks)
+    args.patience, permute_masks)

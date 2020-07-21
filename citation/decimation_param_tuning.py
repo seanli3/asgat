@@ -21,7 +21,7 @@ args = {
     'seed': 729,
     'lr': 0.005,
     'weight_decay': 0.0005,
-    'early_stopping': 50,
+    'patience': 50,
     'hidden': 32,
     'heads': 16,
     'dropout': 0.8,
@@ -91,12 +91,12 @@ def decimation(args):
         def forward(self, data):
             x = data.x
             x = F.dropout(x, p=args['dropout'], training=self.training)
-            x, h = self.analysis(x)
+            x = self.analysis(x)
             x = F.dropout(x, p=args['dropout'], training=self.training)
-            x = F.elu(self.synthesis(x)[0])
+            x = F.elu(self.synthesis(x))
             # x = F.elu(x.mm(self.W))
             # x = self.mlp(x)
-            return F.log_softmax(x, dim=1), h
+            return F.log_softmax(x, dim=1)
 
 
     dataset = get_planetoid_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
@@ -105,25 +105,25 @@ def decimation(args):
         dataset.data.to('cuda')
 
     return run(dataset, Net(dataset), args['runs'], args['epochs'], args['lr'], args['weight_decay'],
-        args['early_stopping'], None)
+        args['patience'], None)
 
 
 best_parameters, best_values, _, _ = optimize(
- parameters=[{'name': 'dataset', 'type': 'fixed', 'value': 'Cora'},
+ parameters=[{'name': 'dataset', 'type': 'fixed', 'value': args['dataset']},
     {'name': 'runs', 'type': 'fixed', 'value': 1},
-    {'name': 'epochs', 'type': 'fixed', 'value': 200},
+    {'name': 'epochs', 'type': 'fixed', 'value': 1000},
     {'name': 'alpha', "type": "range", "bounds": [0.0, 1.0]},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
     {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.00001, 0.5], "log_scale": True},
     {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 1.0], "log_scale": True},
-    {'name': 'early_stopping', 'type': 'fixed', 'value': 50},
+    {'name': 'patience', 'type': 'fixed', 'value': 100},
     {'name': 'hidden', 'type': 'range', "bounds": [8, 128], "log_scale": False},
     {'name': 'heads', 'type': 'range', "bounds": [1, 32]},
     {'name': 'dropout', "type": "range", "bounds": [0.0, 1.0]},
     {'name': 'normalize_features', 'type': 'fixed', 'value': True},
     {'name': 'pre_training', 'type': 'choice', 'values': [True, False]},
     {'name': 'cuda', 'type': 'fixed', 'value': True},
-    {'name': 'chebyshev_order', 'type': 'range', "bounds": [8, 64]},
+    {'name': 'chebyshev_order', 'type': 'range', "bounds": [8, 32]},
     {'name': 'edge_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'filter', 'type': 'fixed', 'value': 'analysis'}],

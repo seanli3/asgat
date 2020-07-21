@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch import tensor
 from torch.optim import Adam
 from sklearn.metrics import f1_score
+import numpy as np
 # from torch_sparse import spmm
 
 
@@ -43,10 +44,10 @@ def random_planetoid_splits(data, num_classes):
     return data
 
 
-def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
+def run(dataset, model, runs, epochs, lr, weight_decay, patience,
         permute_masks=None, logger=None):
 
-    val_losses, accs, durations = [], [], []
+    durations = []
     for _ in range(runs):
         data = dataset[0]
         if permute_masks is not None:
@@ -63,66 +64,50 @@ def run(dataset, model, runs, epochs, lr, weight_decay, early_stopping,
 
         best_val_loss = float('inf')
         best_val_acc = float(0)
-        test_acc = 0
-        val_loss_history = []
-        model_test_loss = 0
-        model_test_acc = 0
-        model_val_loss = 0
-        model_val_acc = 0
-        model_test_f1 = 0
+        eval_info_early_model = None
+        bad_counter = 0
 
         for epoch in range(1, epochs + 1):
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            # if epoch % 10 == 0:
-            #     print(eval_info)
+            if epoch % 10 == 0:
+                print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
 
-            if eval_info['val_loss'] <= best_val_loss or eval_info['val_acc'] >= best_val_acc:
-                if eval_info['val_loss'] <= best_val_loss and eval_info['val_acc'] >= best_val_acc:
-                    # torch.save(model.state_dict(), './best_{}.pkl'.format(dataset.name))
-                    model_test_loss = eval_info['test_loss']
-                    model_test_acc = eval_info['test_acc']
-                    model_val_loss = eval_info['val_loss']
-                    model_val_acc = eval_info['val_acc']
-                    model_test_f1 = eval_info['f1_score']
-                best_val_loss = min(eval_info['val_loss'], best_val_loss)
-                test_acc = max(eval_info['test_acc'], best_val_acc)
-
-            val_loss_history.append(eval_info['val_loss'])
-            if early_stopping > 0 and epoch > epochs // 2:
-                tmp = tensor(val_loss_history[-(early_stopping + 1):-1])
-                if eval_info['val_loss'] > tmp.mean().item():
+            if eval_info['val_acc'] >= best_val_acc or eval_info['val_loss'] <= best_val_loss:
+                if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
+                    eval_info_early_model = eval_info
+                    torch.save(model.state_dict(), './best_{}.pkl'.format(dataset.name))
+                best_val_acc = np.max((best_val_acc, eval_info['val_acc']))
+                best_val_loss = np.min((best_val_loss, eval_info['val_loss']))
+                bad_counter = 0
+            else:
+                bad_counter += 1
+                if bad_counter == patience:
                     break
 
         if torch.cuda.is_available():
             torch.cuda.synchronize()
 
         t_end = time.perf_counter()
-
-        val_losses.append(best_val_loss)
-        accs.append(test_acc)
         durations.append(t_end - t_start)
 
-    loss, acc, duration = tensor(val_losses), tensor(accs), tensor(durations)
+    duration = tensor(durations)
 
-    print('Test Loss: {:.4f}, Test Accuracy: {:.3f}, Test F1:{:.3f}, Validation Loss: {:.4f}, Validation Accuracy: {:.3f}, Duration: {:.3f}'.
-          format(model_test_loss,
-                 model_test_acc,
-                 model_test_f1,
-                 model_val_loss,
-                 model_val_acc,
-                 duration.mean().item()))
-    return model_val_acc
+    print('Early stop! Min loss: ', best_val_loss, ', Max accuracy: ', best_val_acc)
+    print('Early stop model validation loss: ', eval_info_early_model['val_loss'], ', accuracy: ', eval_info_early_model['val_acc'])
+    print('Early stop model test accuracy: ', eval_info_early_model['test_acc'], ', f1-score: ', eval_info_early_model['f1_score'])
+    print('Duration: {:.3f}'.format(duration.mean().item()))
+    return eval_info_early_model['val_loss'] + 1 - eval_info_early_model['val_acc']
 
 
 def train(model, optimizer, data):
     model.train()
     optimizer.zero_grad()
-    out, filterbanks = model(data)
+    out = model(data)
     # coefficients = torch.eye(filterbanks[0].shape[0], filterbanks[0].shape[1])
     # for c in filterbanks:
     #     coefficients = spmm(c.indices(), c.values(), c.shape[0], c.shape[1], coefficients)
@@ -136,7 +121,7 @@ def evaluate(model, data):
     model.eval()
 
     with torch.no_grad():
-        logits, _ = model(data)
+        logits  = model(data)
 
     outs = {}
     for key in ['train', 'val', 'test']:
