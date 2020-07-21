@@ -129,6 +129,6 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'filter', 'type': 'fixed', 'value': 'analysis'}],
     evaluation_function=decimation,
     total_trials=100,
- minimize=False)
+    minimize=True)
 
 print(best_parameters, best_values)

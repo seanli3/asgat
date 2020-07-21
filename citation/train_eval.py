@@ -71,8 +71,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            if epoch % 10 == 0:
-                print(eval_info)
+            # if epoch % 10 == 0:
+            #     print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -97,17 +97,17 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
 
     duration = tensor(durations)
 
-    print('Early stop! Min loss: ', best_val_loss, ', Max accuracy: ', best_val_acc)
+    print('Early stop! Min val loss: ', best_val_loss, ', Max val accuracy: ', best_val_acc)
     print('Early stop model validation loss: ', eval_info_early_model['val_loss'], ', accuracy: ', eval_info_early_model['val_acc'])
     print('Early stop model test accuracy: ', eval_info_early_model['test_acc'], ', f1-score: ', eval_info_early_model['f1_score'])
     print('Duration: {:.3f}'.format(duration.mean().item()))
-    return eval_info_early_model['val_loss'] + 1 - eval_info_early_model['val_acc']
+    return eval_info_early_model['val_acc']
 
 
 def train(model, optimizer, data):
     model.train()
     optimizer.zero_grad()
-    out = model(data)
+    out = model(data)[0]
     # coefficients = torch.eye(filterbanks[0].shape[0], filterbanks[0].shape[1])
     # for c in filterbanks:
     #     coefficients = spmm(c.indices(), c.values(), c.shape[0], c.shape[1], coefficients)
@@ -121,7 +121,7 @@ def evaluate(model, data):
     model.eval()
 
     with torch.no_grad():
-        logits  = model(data)
+        logits  = model(data)[0]
 
     outs = {}
     for key in ['train', 'val', 'test']:

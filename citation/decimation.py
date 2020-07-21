@@ -20,7 +20,7 @@ parser.add_argument('--weight_decay', type=float, default=0.0005)
 parser.add_argument('--patience', type=int, default=100)
 parser.add_argument('--hidden', type=int, default=32)
 parser.add_argument('--heads', type=int, default=12)
-parser.add_argument('--dropout', type=float, default=0.8)
+parser.add_argument('--dropout', type=float, default=0.7)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
@@ -87,12 +87,13 @@ class Net(torch.nn.Module):
     def forward(self, data):
         x = data.x
         x = F.dropout(x, p=args.dropout, training=self.training)
-        x = self.analysis(x)
+        x, att1 = self.analysis(x)
         x = F.dropout(x, p=args.dropout, training=self.training)
-        x = F.elu(self.synthesis(x))
+        x, att2 = self.synthesis(x)
+        x = F.elu(x)
         # x = x.mm(self.W)
         # x = self.mlp(x)
-        return F.log_softmax(x, dim=1)
+        return F.log_softmax(x, dim=1), att1, att2
 
 
 dataset = get_planetoid_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
