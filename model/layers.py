@@ -105,10 +105,8 @@ class GraphSpectralFilterLayer(nn.Module):
         h_primes = []
         attentions = []
         for coefficients in coefficients_list:
-            overall_mean = torch.sparse.sum(coefficients) / N / N
-            coefficients_mask = coefficients.values() > overall_mean
-            attention_indices = coefficients.indices().T[coefficients_mask].T
-            attention_values = self.leakyrelu(coefficients.values()[coefficients_mask])
+            attention_indices = coefficients.indices()
+            attention_values = self.leakyrelu(coefficients.values())
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
                             attention_values,
@@ -121,7 +119,7 @@ class GraphSpectralFilterLayer(nn.Module):
             h_prime = spmm(attention_indices,
                            F.dropout(attention_values,
                                      training=self.training,
-                                     p=self.dropout * len(coefficients_mask.nonzero()) / (self.N * self.N)),
+                                     p=self.dropout * attention_values.shape[0] / (self.N * self.N)),
                            self.N,
                            self.N,
                            h).div(divisor)
