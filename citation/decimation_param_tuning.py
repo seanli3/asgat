@@ -91,12 +91,13 @@ def decimation(args):
         def forward(self, data):
             x = data.x
             x = F.dropout(x, p=args['dropout'], training=self.training)
-            x = self.analysis(x)
+            x, att1  = self.analysis(x)
             x = F.dropout(x, p=args['dropout'], training=self.training)
-            x = F.elu(self.synthesis(x))
+            x, att2 = self.synthesis(x)
+            x = F.elu(x)
             # x = F.elu(x.mm(self.W))
             # x = self.mlp(x)
-            return F.log_softmax(x, dim=1)
+            return F.log_softmax(x, dim=1), att1, att2
 
 
     dataset = get_planetoid_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
