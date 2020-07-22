@@ -11,6 +11,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
+parser.add_argument('--trials', type=int, default=20)
 arg = parser.parse_args()
 
 args = {
@@ -129,7 +130,7 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'filter', 'type': 'fixed', 'value': 'analysis'}],
     evaluation_function=decimation,
-    total_trials=100,
+    total_trials=arg.trials,
     minimize=True)
 
 print(best_parameters, best_values)
