@@ -107,8 +107,10 @@ class GraphSpectralFilterLayer(nn.Module):
         for coefficients in coefficients_list:
             attention_indices = coefficients.indices()
             attention_values = coefficients.values()
-            # Set nan to zero
-            attention_values[attention_values != attention_values] = 0
+            if torch.isnan(attention_values).any():
+                # Set nan to zero
+                attention_values = torch.where(torch.isnan(attention_values), torch.full_like(attention_values, -9e15), attention_values)
+            assert not torch.isnan(attention_values).any()
             attention_values = self.leakyrelu(attention_values)
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
