@@ -72,7 +72,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
             # if epoch % 10 == 0:
-            #     print(eval_info)
+                # print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -80,7 +80,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             if eval_info['val_acc'] > best_val_acc or eval_info['val_loss'] < best_val_loss:
                 if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
                     eval_info_early_model = eval_info
-                    torch.save(model.state_dict(), './best_{}.pkl'.format(dataset.name))
+                    # torch.save(model.state_dict(), './best_{}_gat.pkl'.format(dataset.name))
                 best_val_acc = np.max((best_val_acc, eval_info['val_acc']))
                 best_val_loss = np.min((best_val_loss, eval_info['val_loss']))
                 bad_counter = 0
@@ -101,7 +101,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
     print('Early stop model validation loss: ', eval_info_early_model['val_loss'], ', accuracy: ', eval_info_early_model['val_acc'])
     print('Early stop model test accuracy: ', eval_info_early_model['test_acc'], ', f1-score: ', eval_info_early_model['f1_score'])
     print('Duration: {:.3f}'.format(duration.mean().item()))
-    return eval_info_early_model['val_acc']
+    return eval_info_early_model['test_acc']
 
 
 def train(model, optimizer, data):
