@@ -6,25 +6,27 @@ import torch.nn.functional as F
 from torch import nn
 from random import seed as rseed
 from numpy.random import seed as nseed
-from citation import get_planetoid_dataset, random_planetoid_splits, run
+from citation import get_dataset, random_planetoid_splits, run
+from citation.train_eval import evaluate
+import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--random_splits', type=bool, default=False)
 parser.add_argument('--runs', type=int, default=1)
-parser.add_argument('--epochs', type=int, default=1000)
-parser.add_argument('--alpha', type=float, default=0.2)
+parser.add_argument('--epochs', type=int, default=2000)
+parser.add_argument('--alpha', type=float, default=0.4325176513738335)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
-parser.add_argument('--lr', type=float, default=0.005)
-parser.add_argument('--weight_decay', type=float, default=0.0005)
+parser.add_argument('--lr', type=float, default=0.0001502755734819816)
+parser.add_argument('--weight_decay', type=float, default=9.70164175612743e-05)
 parser.add_argument('--patience', type=int, default=100)
-parser.add_argument('--hidden', type=int, default=32)
-parser.add_argument('--heads', type=int, default=12)
-parser.add_argument('--dropout', type=float, default=0.7)
+parser.add_argument('--hidden', type=int, default=83)
+parser.add_argument('--heads', type=int, default=19)
+parser.add_argument('--dropout', type=float, default=0.6760251172015357)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
-parser.add_argument('--chebyshev_order', type=int, default=16, help='Chebyshev polynomial order')
+parser.add_argument('--chebyshev_order', type=int, default=17, help='Chebyshev polynomial order')
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
@@ -69,7 +71,7 @@ class Net(torch.nn.Module):
         #                             nn.Linear(32, dataset.num_classes),
         #                             nn.ReLU(inplace=True))
 
-        # self.W = torch.zeros(args.hidden * args.heads, dataset.num_classes)
+        # self.W = torch.nn.Parameter(torch.zeros(args.hidden * args.heads, dataset.num_classes))
 
         self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes, filter=args.filter,
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
@@ -91,12 +93,12 @@ class Net(torch.nn.Module):
         x = F.dropout(x, p=args.dropout, training=self.training)
         x, att2 = self.synthesis(x)
         x = F.elu(x)
-        # x = x.mm(self.W)
-        # x = self.mlp(x)
-        return F.log_softmax(x, dim=1), att1, att2
+        # x = F.elu(x.mm(self.W))
+        # x = F.elu(self.mlp(x))
+        return F.log_softmax(x, dim=1), att1, None
 
 
-dataset = get_planetoid_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
+dataset = get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
                                 node_feature_dropout=args.node_feature_dropout)
 if args.cuda:
     dataset.data.to('cuda')

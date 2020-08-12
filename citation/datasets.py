@@ -1,6 +1,5 @@
 import os.path as osp
-
-from torch_geometric.datasets import Planetoid
+from torch_geometric.datasets import Planetoid, PPI, Amazon, Reddit, Coauthor
 import torch_geometric.transforms as T
 from torch_geometric.utils import add_self_loops, dropout_adj
 from random import sample
@@ -8,10 +7,16 @@ from torch.nn import functional as F
 import torch
 
 
-def get_planetoid_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None):
+def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
-    dataset = Planetoid(path, name, split="full")
-
+    if name in ['Computers', 'Photo']:
+        dataset = Amazon(path, name)
+    elif name in ['Cora', 'Citeseer', 'PubMed']:
+        dataset = Planetoid(path, name, split="full")
+    elif name in ['CS', 'Physics']:
+        dataset = Coauthor(path, name, split="full")
+    elif name in ['Reddit']:
+        dataset = Reddit(path)
     if transform is not None and normalize_features:
         dataset.transform = T.Compose([T.NormalizeFeatures(), transform])
     elif normalize_features:

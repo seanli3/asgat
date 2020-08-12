@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from random import seed as rseed
 from numpy.random import seed as nseed
-from citation import get_planetoid_dataset, run
+from citation import get_dataset, run
 from ax import optimize
 import argparse
 
@@ -100,8 +100,7 @@ def decimation(args):
             # x = self.mlp(x)
             return F.log_softmax(x, dim=1), att1, att2
 
-
-    dataset = get_planetoid_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
+    dataset = get_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
                                     node_feature_dropout=args['node_feature_dropout'])
     if args['cuda']:
         dataset.data.to('cuda')
@@ -113,15 +112,15 @@ def decimation(args):
 best_parameters, best_values, _, _ = optimize(
  parameters=[{'name': 'dataset', 'type': 'fixed', 'value': args['dataset']},
     {'name': 'runs', 'type': 'fixed', 'value': 1},
-    {'name': 'epochs', 'type': 'fixed', 'value': 1000},
-    {'name': 'alpha', "type": "range", "bounds": [0.0, 1.0]},
+    {'name': 'epochs', 'type': 'fixed', 'value': 2000},
+    {'name': 'alpha', "type": "range", "bounds": [0.1, 1.0]},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
-    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.0001, 0.1], "log_scale": True},
+    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.0001, 0.2], "log_scale": True},
     {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 1.0], "log_scale": True},
     {'name': 'patience', 'type': 'fixed', 'value': 100},
-    {'name': 'hidden', 'type': 'range', "bounds": [8, 88], "log_scale": False},
-    {'name': 'heads', 'type': 'range', "bounds": [4, 20]},
-    {'name': 'dropout', "type": "range", "bounds": [0.2, 1.0]},
+    {'name': 'hidden', 'type': 'range', "bounds": [16, 88], "log_scale": False},
+    {'name': 'heads', 'type': 'range', "bounds": [6, 20]},
+    {'name': 'dropout', "type": "range", "bounds": [0.1, 0.9]},
     {'name': 'normalize_features', 'type': 'fixed', 'value': True},
     {'name': 'pre_training', 'type': 'fixed', 'value': False},
     {'name': 'cuda', 'type': 'fixed', 'value': args['cuda']},
