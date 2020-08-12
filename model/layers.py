@@ -5,6 +5,7 @@ from .spectral_filter import Filter
 from torch_sparse import spmm
 import pygsp
 from math import sqrt
+import numpy as np
 
 
 class GaussFilter(nn.Module):
@@ -26,6 +27,7 @@ class GaussFilter(nn.Module):
 class AnalysisFilter(nn.Module):
     def __init__(self, out_channel):
         super(AnalysisFilter, self).__init__()
+        self.out_channel = out_channel
         self.layers = nn.Sequential(nn.Linear(1, 32),
                                     nn.ReLU(inplace=True),
                                     nn.Linear(32, 64),
@@ -107,17 +109,14 @@ class GraphSpectralFilterLayer(nn.Module):
         for coefficients in coefficients_list:
             attention_indices = coefficients.indices()
             attention_values = coefficients.values()
-            if torch.isnan(attention_values).any():
-                # Set nan to zero
-                attention_values = torch.where(torch.isnan(attention_values), torch.full_like(attention_values, -9e15), attention_values)
-            assert not torch.isnan(attention_values).any()
             attention_values = self.leakyrelu(attention_values)
+            attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.eq(0)), torch.full_like(attention_values, -9e15), attention_values)
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
-                            attention_values,
-                            self.N,
-                            self.N,
-                            torch.ones(self.N, 1))
+                           attention_values,
+                           self.N,
+                           self.N,
+                           torch.ones(self.N, 1))
             # Avoid dividing by zero
             divisor = divisor.masked_fill(divisor == 0, 1)
 

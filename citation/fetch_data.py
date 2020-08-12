@@ -1,6 +1,6 @@
-from citation import get_planetoid_dataset
+from citation import get_dataset
 
 
 for data in ['Cora', 'Citeseer', 'PubMed']:
-    get_planetoid_dataset(data)
+    get_dataset(data)
 

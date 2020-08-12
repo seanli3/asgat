@@ -157,6 +157,17 @@ class Filter(nn.Module):
         y = self._kernel(x)
         return y
 
+    def cheby_eval(self, x):
+        x = x.view(-1, 1)
+        a, b = 0, self.G.lmax
+        y = (2.0 * x - a - b) * (1.0 / (b - a))
+        y2 = 2.0 * y
+        c = self.compute_cheby_coeff(m=self.chebyshev_order)
+        (d, dd) = (c[-1], 0)  # Special case first step for efficiency
+        for cj in c.flip(0)[1:-1]:  # Clenshaw's recurrence
+            (d, dd) = (y2 * d - dd + cj, d)
+        return y * d - dd + 0.5 * c[0]
+
     def compute_cheby_coeff(self, m: int = 32, N: int = None) -> torch.Tensor:
         if not N:
             N = m + 1
