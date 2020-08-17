@@ -115,8 +115,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            # if epoch % 10 == 0:
-                # print(eval_info)
+            if epoch % 100 == 0:
+                print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -151,7 +151,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
 def train(model, optimizer, data):
     model.train()
     optimizer.zero_grad()
-    out = model(data)[0]
+    out = model(data)
     # coefficients = torch.eye(filterbanks[0].shape[0], filterbanks[0].shape[1])
     # for c in filterbanks:
     #     coefficients = spmm(c.indices(), c.values(), c.shape[0], c.shape[1], coefficients)
@@ -165,7 +165,7 @@ def evaluate(model, data):
     model.eval()
 
     with torch.no_grad():
-        logits  = model(data)[0]
+        logits  = model(data)
 
     outs = {}
     for key in ['train', 'val', 'test']:
