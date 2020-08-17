@@ -110,7 +110,7 @@ class GraphSpectralFilterLayer(nn.Module):
             attention_indices = coefficients.indices()
             attention_values = coefficients.values()
             attention_values = self.leakyrelu(attention_values)
-            attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.le(0)), torch.full_like(attention_values, -9e15), attention_values)
+            attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.eq(0)), torch.full_like(attention_values, -9e15), attention_values)
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
                            attention_values,

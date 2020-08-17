@@ -121,10 +121,10 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             if logger is not None:
                 logger(eval_info)
 
-            if eval_info['val_acc'] > best_val_acc or eval_info['val_loss'] < best_val_loss:
+            if eval_info['val_acc'] >= best_val_acc or eval_info['val_loss'] <= best_val_loss:
                 if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
                     eval_info_early_model = eval_info
-                    # torch.save(model.state_dict(), './best_{}_gat.pkl'.format(dataset.name))
+                    torch.save(model.state_dict(), './best_{}_4000.pkl'.format(dataset.name))
                 best_val_acc = np.max((best_val_acc, eval_info['val_acc']))
                 best_val_loss = np.min((best_val_loss, eval_info['val_loss']))
                 bad_counter = 0
