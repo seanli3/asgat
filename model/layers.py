@@ -106,11 +106,13 @@ class GraphSpectralFilterLayer(nn.Module):
         coefficients_list = self.filter()
         h_primes = []
         # attentions = []
+
         for coefficients in coefficients_list:
+            # overall_mean = torch.sparse.sum(coefficients) / N / N
             attention_indices = coefficients.indices()
             attention_values = coefficients.values()
             attention_values = self.leakyrelu(attention_values)
-            attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.eq(0)), torch.full_like(attention_values, -9e15), attention_values)
+            attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.lt(0)), torch.full_like(attention_values, -9e15), attention_values)
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
                            attention_values,
@@ -130,7 +132,7 @@ class GraphSpectralFilterLayer(nn.Module):
             assert not torch.isnan(h_prime).any()
             h_primes.append(F.elu(h_prime))
             # attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
-        return torch.cat(h_primes, dim=1)
+        return torch.cat(h_primes, dim=1), None
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

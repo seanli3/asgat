@@ -115,16 +115,16 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            if epoch % 100 == 0:
-                print(eval_info)
+            # if epoch % 10 == 0:
+            #     print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
 
-            if eval_info['val_acc'] >= best_val_acc or eval_info['val_loss'] <= best_val_loss:
+            if eval_info['val_acc'] > best_val_acc or eval_info['val_loss'] < best_val_loss:
                 if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
                     eval_info_early_model = eval_info
-                    torch.save(model.state_dict(), './best_{}_4000.pkl'.format(dataset.name))
+                    # torch.save(model.state_dict(), './best_{}_no_t.pkl'.format(dataset.name))
                 best_val_acc = np.max((best_val_acc, eval_info['val_acc']))
                 best_val_loss = np.min((best_val_loss, eval_info['val_loss']))
                 bad_counter = 0
@@ -151,7 +151,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
 def train(model, optimizer, data):
     model.train()
     optimizer.zero_grad()
-    out = model(data)
+    out = model(data)[0]
     # coefficients = torch.eye(filterbanks[0].shape[0], filterbanks[0].shape[1])
     # for c in filterbanks:
     #     coefficients = spmm(c.indices(), c.values(), c.shape[0], c.shape[1], coefficients)
@@ -165,7 +165,7 @@ def evaluate(model, data):
     model.eval()
 
     with torch.no_grad():
-        logits  = model(data)
+        logits = model(data)[0]
 
     outs = {}
     for key in ['train', 'val', 'test']:
