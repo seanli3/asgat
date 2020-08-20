@@ -92,7 +92,7 @@ def decimation(args):
         def forward(self, data):
             x = data.x
             x = F.dropout(x, p=args['dropout'], training=self.training)
-            x, att1  = self.analysis(x)
+            x, att1 = self.analysis(x)
             x = F.dropout(x, p=args['dropout'], training=self.training)
             x, att2 = self.synthesis(x)
             x = F.elu(x)

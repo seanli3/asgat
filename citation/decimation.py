@@ -89,13 +89,13 @@ class Net(torch.nn.Module):
     def forward(self, data):
         x = data.x
         x = F.dropout(x, p=args.dropout, training=self.training)
-        x = self.analysis(x)
+        x = self.analysis(x)[0]
         x = F.dropout(x, p=args.dropout, training=self.training)
-        x = self.synthesis(x)
+        x = self.synthesis(x)[0]
         x = F.elu(x)
         # x = F.elu(x.mm(self.W))
         # x = F.elu(self.mlp(x))
-        return F.log_softmax(x, dim=1)
+        return F.log_softmax(x, dim=1), None, None
 
 
 dataset = get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
