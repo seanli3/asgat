@@ -50,7 +50,6 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
-
 class Net(torch.nn.Module):
     def __init__(self, dataset):
         super(Net, self).__init__()
@@ -100,9 +99,7 @@ class Net(torch.nn.Module):
 
 
 dataset = get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
-if args.cuda:
-    dataset.data.to('cuda')
+                                node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t, cuda=args.cuda)
 
 permute_masks = random_planetoid_splits if args.random_splits else None
 run(dataset, Net(dataset), args.runs, args.epochs, args.lr, args.weight_decay,
