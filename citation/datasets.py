@@ -40,7 +40,7 @@ def matching_labels_distribution(dataset, nodes_set):
     return hop_1_matching_percent, hop_2_matching_percent, hop_3_matching_percent
 
 
-def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None, dissimilar_t = 1):
+def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None, dissimilar_t = 1, cuda=False):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     if name in ['Computers', 'Photo']:
         dataset = Amazon(path, name)
@@ -69,6 +69,9 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         drop_indices = sample(list(range(num_nodes)), int(node_feature_dropout * num_nodes))
         dataset.data.x.index_fill_(0, torch.tensor(drop_indices).cpu(), 0)
         print('Node feature dropout rate: {:.4f}' .format(len(drop_indices)/num_nodes))
+
+    if cuda:
+        dataset.data.to('cuda')
 
     dissimilar_neighbhour_train_mask = dataset[0]['train_mask'].clone()
     dissimilar_neighbhour_val_mask = dataset[0]['val_mask'].clone()
