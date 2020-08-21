@@ -30,6 +30,7 @@ parser.add_argument('--chebyshev_order', type=int, default=15, help='Chebyshev p
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
+parser.add_argument('--dissimilar_t', type=float, default=1)
 args = parser.parse_args()
 
 print(args)
@@ -99,7 +100,7 @@ class Net(torch.nn.Module):
 
 
 dataset = get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                node_feature_dropout=args.node_feature_dropout)
+                                node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 if args.cuda:
     dataset.data.to('cuda')
 
