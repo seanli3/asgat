@@ -70,20 +70,20 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         dataset.data.x.index_fill_(0, torch.tensor(drop_indices).cpu(), 0)
         print('Node feature dropout rate: {:.4f}' .format(len(drop_indices)/num_nodes))
 
-    if cuda:
-        dataset.data.to('cuda')
-
     dissimilar_neighbhour_train_mask = dataset[0]['train_mask'].clone()
     dissimilar_neighbhour_val_mask = dataset[0]['val_mask'].clone()
     dissimilar_neighbhour_test_mask = dataset[0]['test_mask'].clone()
     label_distributions = matching_labels_distribution(dataset, dissimilar_neighbhour_train_mask.nonzero().view(-1).tolist())
-    dissimilar_neighbhour_train_mask[dissimilar_neighbhour_train_mask] = (torch.tensor(label_distributions[0]) <= dissimilar_t)
+    dissimilar_neighbhour_train_mask[dissimilar_neighbhour_train_mask] = (torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
     label_distributions = matching_labels_distribution(dataset, dissimilar_neighbhour_val_mask.nonzero().view(-1).tolist())
-    dissimilar_neighbhour_val_mask[dissimilar_neighbhour_val_mask] = (torch.tensor(label_distributions[0]) <= dissimilar_t)
+    dissimilar_neighbhour_val_mask[dissimilar_neighbhour_val_mask] = (torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
     label_distributions = matching_labels_distribution(dataset, dissimilar_neighbhour_test_mask.nonzero().view(-1).tolist())
-    dissimilar_neighbhour_test_mask[dissimilar_neighbhour_test_mask] = (torch.tensor(label_distributions[0]) <= dissimilar_t)
+    dissimilar_neighbhour_test_mask[dissimilar_neighbhour_test_mask] = (torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
     dataset.data.train_mask = dissimilar_neighbhour_train_mask
     dataset.data.val_mask = dissimilar_neighbhour_val_mask
     dataset.data.test_mask = dissimilar_neighbhour_test_mask
+
+    if cuda:
+        dataset.data.to('cuda')
 
     return dataset
