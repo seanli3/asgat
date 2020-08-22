@@ -101,7 +101,7 @@ class Net(torch.nn.Module):
 permute_masks = random_planetoid_splits if args.random_splits else None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks,
+                                    permute_masks=permute_masks, cuda=args.cuda,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t, lcc=False)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
