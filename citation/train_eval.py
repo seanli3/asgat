@@ -8,95 +8,15 @@ from torch import tensor
 from torch.optim import Adam
 from sklearn.metrics import f1_score
 import numpy as np
-from torch_geometric.utils import to_networkx
-import networkx as nx
 # from torch_sparse import spmm
-
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
-def index_to_mask(index, size):
-    mask = torch.zeros(size, dtype=torch.bool, device=index.device)
-    mask[index] = 1
-    return mask
-
-
-def random_planetoid_splits(data, num_classes):
-    # Set new random planetoid splits:
-    # * 20 * num_classes labels for training
-    # * 500 labels for validation
-    # * 1000 labels for testing
-
-    indices = []
-    for i in range(num_classes):
-        index = (data.y == i).nonzero().view(-1)
-        index = index[torch.randperm(index.size(0))]
-        indices.append(index)
-
-    train_index = torch.cat([i[:20] for i in indices], dim=0)
-
-    rest_index = torch.cat([i[20:] for i in indices], dim=0)
-    rest_index = rest_index[torch.randperm(rest_index.size(0))]
-
-    data.train_mask = index_to_mask(train_index, size=data.num_nodes)
-    data.val_mask = index_to_mask(rest_index[:500], size=data.num_nodes)
-    data.test_mask = index_to_mask(rest_index[500:1500], size=data.num_nodes)
-
-    return data
-
-
-def random_coauthor_amazon_splits(data, num_classes, lcc_mask):
-    # Set random coauthor/co-purchase splits:
-    # * 20 * num_classes labels for training
-    # * 30 * num_classes labels for validation
-    # rest labels for testing
-
-    indices = []
-    if lcc_mask is not None:
-        for i in range(num_classes):
-            index = (data.y[lcc_mask] == i).nonzero().view(-1)
-            index = index[torch.randperm(index.size(0))]
-            indices.append(index)
-    else:
-        for i in range(num_classes):
-            index = (data.y == i).nonzero().view(-1)
-            index = index[torch.randperm(index.size(0))]
-            indices.append(index)
-
-    train_index = torch.cat([i[:20] for i in indices], dim=0)
-    val_index = torch.cat([i[20:50] for i in indices], dim=0)
-
-    rest_index = torch.cat([i[50:] for i in indices], dim=0)
-    rest_index = rest_index[torch.randperm(rest_index.size(0))]
-
-    data.train_mask = index_to_mask(train_index, size=data.num_nodes)
-    data.val_mask = index_to_mask(val_index, size=data.num_nodes)
-    data.test_mask = index_to_mask(rest_index, size=data.num_nodes)
-
-    return data
-
-
-def run(dataset, model, runs, epochs, lr, weight_decay, patience,
-        permute_masks=None, logger=None, lcc=False):
-
+def run(dataset, model, runs, epochs, lr, weight_decay, patience, logger=None):
     durations = []
-
-    lcc_mask = None
-    if lcc:  # select largest connected component
-        data_ori = dataset[0]
-        data_nx = to_networkx(data_ori)
-        data_nx = data_nx.to_undirected()
-        print("Original #nodes:", data_nx.number_of_nodes())
-        data_nx = data_nx.subgraph(max(nx.connected_components(data_nx), key=len))
-        print("#Nodes after lcc:", data_nx.number_of_nodes())
-        lcc_mask = list(data_nx.nodes)
 
     for _ in range(runs):
         data = dataset[0]
-        if permute_masks is not None:
-            data = permute_masks(data, dataset.num_classes, lcc_mask)
-        data = data.to(device)
 
         model.to(device).reset_parameters()
         optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -115,8 +35,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            # if epoch % 10 == 0:
-            #     print(eval_info)
+            if epoch % 10 == 0:
+                print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -124,7 +44,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
             if eval_info['val_acc'] > best_val_acc or eval_info['val_loss'] < best_val_loss:
                 if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
                     eval_info_early_model = eval_info
-                    # torch.save(model.state_dict(), './best_{}_no_t.pkl'.format(dataset.name))
+                    # torch.save(model.state_dict(), './best_{}_appnp.pkl'.format(dataset.name))
                 best_val_acc = np.max((best_val_acc, eval_info['val_acc']))
                 best_val_loss = np.min((best_val_loss, eval_info['val_loss']))
                 bad_counter = 0
@@ -141,7 +61,7 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience,
 
     duration = tensor(durations)
 
-    print('Early stop! Min val loss: ', best_val_loss, ', Max val accuracy: ', best_val_acc)
+    print('Min val loss: ', best_val_loss, ', Max val accuracy: ', best_val_acc)
     print('Early stop model validation loss: ', eval_info_early_model['val_loss'], ', accuracy: ', eval_info_early_model['val_acc'])
     print('Early stop model test accuracy: ', eval_info_early_model['test_acc'], ', f1-score: ', eval_info_early_model['f1_score'])
     print('Duration: {:.3f}'.format(duration.mean().item()))

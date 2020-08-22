@@ -105,7 +105,7 @@ class GraphSpectralFilterLayer(nn.Module):
 
         coefficients_list = self.filter()
         h_primes = []
-        # attentions = []
+        attentions = []
 
         for coefficients in coefficients_list:
             # overall_mean = torch.sparse.sum(coefficients) / N / N
@@ -131,8 +131,8 @@ class GraphSpectralFilterLayer(nn.Module):
                            h).div(divisor)
             assert not torch.isnan(h_prime).any()
             h_primes.append(F.elu(h_prime))
-            # attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
-        return torch.cat(h_primes, dim=1), None
+            attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
+        return torch.cat(h_primes, dim=1), attentions
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

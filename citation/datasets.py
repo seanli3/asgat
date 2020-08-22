@@ -4,10 +4,12 @@ import torch_geometric.transforms as T
 from torch_geometric.utils import add_self_loops, dropout_adj
 from random import sample
 from torch.nn import functional as F
+from torch_geometric.utils import to_networkx
+import networkx as nx
 import torch
 
 
-def matching_labels_distribution(dataset, nodes_set):
+def matching_labels_distribution(dataset):
     import networkx as nx
     from scipy.sparse import coo_matrix
     import numpy as np
@@ -22,7 +24,7 @@ def matching_labels_distribution(dataset, nodes_set):
     hop_1_matching_percent = []
     hop_2_matching_percent = []
     hop_3_matching_percent = []
-    for n in nodes_set:
+    for n in range(dataset.data.num_nodes):
         hop_1_neighbours = list(nx.ego_graph(G, n, 1).nodes())
         hop_2_neighbours = list(nx.ego_graph(G, n, 2).nodes())
         hop_3_neighbours = list(nx.ego_graph(G, n, 3).nodes())
@@ -39,8 +41,76 @@ def matching_labels_distribution(dataset, nodes_set):
 
     return hop_1_matching_percent, hop_2_matching_percent, hop_3_matching_percent
 
+def index_to_mask(index, size):
+    mask = torch.zeros(size, dtype=torch.bool, device=index.device)
+    mask[index] = 1
+    return mask
 
-def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None, dissimilar_t = 1, cuda=False):
+
+def random_planetoid_splits(data, num_classes, dissimilar_mask=None, lcc_mask=None):
+    # Set new random planetoid splits:
+    # * 20 * num_classes labels for training
+    # * 500 labels for validation
+    # * 1000 labels for testing
+
+    indices = []
+    for i in range(num_classes):
+        if dissimilar_mask is None and lcc_mask is None:
+            index = (data.y == i).nonzero().view(-1)
+        elif dissimilar_mask is not None and lcc_mask is None:
+            index = (data.y == i).logical_and(dissimilar_mask).nonzero().view(-1)
+        else:
+            index = (data.y == i).logical_and(dissimilar_mask).logical_and(lcc_mask).nonzero().view(-1)
+        index = index[torch.randperm(index.size(0))]
+        indices.append(index)
+
+    train_index = torch.cat([i[:20] for i in indices], dim=0)
+    rest_index = torch.cat([i[20:] for i in indices], dim=0)
+    rest_index = rest_index[torch.randperm(rest_index.size(0))]
+
+    if len(rest_index) < 100:
+        raise Exception('Not enough val and test data')
+
+    data.train_mask = index_to_mask(train_index, size=data.num_nodes)
+    data.val_mask = index_to_mask(rest_index[:min(len(rest_index)//3, 500)], size=data.num_nodes)
+    data.test_mask = index_to_mask(rest_index[min(len(rest_index)//3, 500):max(len(rest_index)*2//3, 1500)], size=data.num_nodes)
+
+    return data
+
+
+def random_coauthor_amazon_splits(data, num_classes, lcc_mask):
+    # Set random coauthor/co-purchase splits:
+    # * 20 * num_classes labels for training
+    # * 30 * num_classes labels for validation
+    # rest labels for testing
+
+    indices = []
+    if lcc_mask is not None:
+        for i in range(num_classes):
+            index = (data.y[lcc_mask] == i).nonzero().view(-1)
+            index = index[torch.randperm(index.size(0))]
+            indices.append(index)
+    else:
+        for i in range(num_classes):
+            index = (data.y == i).nonzero().view(-1)
+            index = index[torch.randperm(index.size(0))]
+            indices.append(index)
+
+    train_index = torch.cat([i[:20] for i in indices], dim=0)
+    val_index = torch.cat([i[20:50] for i in indices], dim=0)
+
+    rest_index = torch.cat([i[50:] for i in indices], dim=0)
+    rest_index = rest_index[torch.randperm(rest_index.size(0))]
+
+    data.train_mask = index_to_mask(train_index, size=data.num_nodes)
+    data.val_mask = index_to_mask(val_index, size=data.num_nodes)
+    data.test_mask = index_to_mask(rest_index, size=data.num_nodes)
+
+    return data
+
+
+def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None,
+                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     if name in ['Computers', 'Photo']:
         dataset = Amazon(path, name)
@@ -70,18 +140,29 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         dataset.data.x.index_fill_(0, torch.tensor(drop_indices).cpu(), 0)
         print('Node feature dropout rate: {:.4f}' .format(len(drop_indices)/num_nodes))
 
-    dissimilar_neighbhour_train_mask = dataset[0]['train_mask'].clone()
-    dissimilar_neighbhour_val_mask = dataset[0]['val_mask'].clone()
-    dissimilar_neighbhour_test_mask = dataset[0]['test_mask'].clone()
-    label_distributions = matching_labels_distribution(dataset, dissimilar_neighbhour_train_mask.nonzero().view(-1).tolist())
-    dissimilar_neighbhour_train_mask[dissimilar_neighbhour_train_mask] = (torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
-    label_distributions = matching_labels_distribution(dataset, dissimilar_neighbhour_val_mask.nonzero().view(-1).tolist())
-    dissimilar_neighbhour_val_mask[dissimilar_neighbhour_val_mask] = (torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
-    label_distributions = matching_labels_distribution(dataset, dissimilar_neighbhour_test_mask.nonzero().view(-1).tolist())
-    dissimilar_neighbhour_test_mask[dissimilar_neighbhour_test_mask] = (torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
-    dataset.data.train_mask = dissimilar_neighbhour_train_mask
-    dataset.data.val_mask = dissimilar_neighbhour_val_mask
-    dataset.data.test_mask = dissimilar_neighbhour_test_mask
+    if dissimilar_t < 1 and not permute_masks:
+        label_distributions = matching_labels_distribution(dataset)
+        dissimilar_neighbhour_train_mask = dataset[0]['train_mask'].logical_and(torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
+        dissimilar_neighbhour_val_mask = dataset[0]['val_mask'].logical_and(torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
+        dissimilar_neighbhour_test_mask = dataset[0]['test_mask'].logical_and(torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
+        dataset.data.train_mask = dissimilar_neighbhour_train_mask
+        dataset.data.val_mask = dissimilar_neighbhour_val_mask
+        dataset.data.test_mask = dissimilar_neighbhour_test_mask
+
+    lcc_mask = None
+    if lcc:  # select largest connected component
+        data_ori = dataset[0]
+        data_nx = to_networkx(data_ori)
+        data_nx = data_nx.to_undirected()
+        print("Original #nodes:", data_nx.number_of_nodes())
+        data_nx = data_nx.subgraph(max(nx.connected_components(data_nx), key=len))
+        print("#Nodes after lcc:", data_nx.number_of_nodes())
+        lcc_mask = list(data_nx.nodes)
+
+    if permute_masks is not None:
+        label_distributions = matching_labels_distribution(dataset)
+        dataset.data = permute_masks(dataset.data, dataset.num_classes, lcc_mask=lcc_mask,
+                                     dissimilar_mask=torch.tensor(label_distributions[0]).cpu() <= dissimilar_t)
 
     if cuda:
         dataset.data.to('cuda')

@@ -98,9 +98,8 @@ class Net(torch.nn.Module):
         return F.log_softmax(x, dim=1), None, None
 
 
-dataset = get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
+permute_masks = random_planetoid_splits if args.random_splits else None
+dataset = get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout, permute_masks=permute_masks,
                                 node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t, cuda=args.cuda)
 
-permute_masks = random_planetoid_splits if args.random_splits else None
-run(dataset, Net(dataset), args.runs, args.epochs, args.lr, args.weight_decay,
-    args.patience, permute_masks)
+run(dataset, Net(dataset), args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
