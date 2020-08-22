@@ -12,11 +12,12 @@ import numpy as np
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def run(dataset, model, runs, epochs, lr, weight_decay, patience, logger=None):
-    durations = []
-
+def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=None):
+    val_losses, train_accs, val_accs, test_accs, f1, durations = [], [], [], [], [], []
     for _ in range(runs):
+        dataset = use_dataset()
         data = dataset[0]
+        model = Model(dataset)
 
         model.to(device).reset_parameters()
         optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -35,8 +36,8 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience, logger=None):
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            if epoch % 10 == 0:
-                print(eval_info)
+            # if epoch % 10 == 0:
+            #     print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -59,12 +60,27 @@ def run(dataset, model, runs, epochs, lr, weight_decay, patience, logger=None):
         t_end = time.perf_counter()
         durations.append(t_end - t_start)
 
-    duration = tensor(durations)
+        val_losses.append(eval_info_early_model['val_loss'])
+        train_accs.append(eval_info_early_model['train_acc'])
+        val_accs.append(eval_info_early_model['val_acc'])
+        test_accs.append(eval_info_early_model['test_acc'])
+        f1.append(eval_info_early_model['f1_score'])
+        durations.append(t_end - t_start)
 
-    print('Min val loss: ', best_val_loss, ', Max val accuracy: ', best_val_acc)
-    print('Early stop model validation loss: ', eval_info_early_model['val_loss'], ', accuracy: ', eval_info_early_model['val_acc'])
-    print('Early stop model test accuracy: ', eval_info_early_model['test_acc'], ', f1-score: ', eval_info_early_model['f1_score'])
-    print('Duration: {:.3f}'.format(duration.mean().item()))
+    val_losses, train_accs, val_accs, test_accs, f1, duration = tensor(val_losses), tensor(train_accs), tensor(val_accs), \
+                                                            tensor(test_accs), tensor(f1), tensor(durations)
+
+    print('Val Loss: {:.4f}, Train Accuracy: {:.3f} ± {:.3f}, Val Accuracy: {:.3f} ± {:.3f}, Test Accuracy: {:.3f} ± {:.3f}, F1: {:.3f} ± {:.3f}, Duration: {:.3f}'.
+          format(val_losses.mean().item(),
+                 train_accs.mean().item(),
+                 train_accs.std().item(),
+                 val_accs.mean().item(),
+                 val_accs.std().item(),
+                 test_accs.mean().item(),
+                 test_accs.std().item(),
+                 f1.mean().item(),
+                 f1.std().item(),
+                 duration.mean().item()))
     return eval_info_early_model['test_acc']
 
 
