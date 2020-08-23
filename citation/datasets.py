@@ -67,7 +67,7 @@ def random_planetoid_splits(data, num_classes, dissimilar_mask=None, lcc_mask=No
     rest_index = torch.cat([i[20:] for i in indices], dim=0)
     rest_index = rest_index[torch.randperm(rest_index.size(0))]
 
-    if len(rest_index) < 100:
+    if len(rest_index) < 60:
         raise Exception('Not enough val and test data')
 
     data.train_mask = index_to_mask(train_index, size=data.num_nodes)
