@@ -7,13 +7,12 @@ from torch.nn import functional as F
 from torch_geometric.utils import to_networkx
 import networkx as nx
 import torch
+import networkx as nx
+from scipy.sparse import coo_matrix
+import numpy as np
 
 
 def matching_labels_distribution(dataset):
-    import networkx as nx
-    from scipy.sparse import coo_matrix
-    import numpy as np
-
     # Build graph
     adj = coo_matrix(
         (np.ones(dataset[0].num_edges),
@@ -166,7 +165,7 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         lcc_mask = list(data_nx.nodes)
 
     if permute_masks is not None:
-        label_distributions = matching_labels_distribution(dataset)
+        label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
         dataset.data = permute_masks(dataset.data, dataset.num_classes, lcc_mask=lcc_mask,
                                      dissimilar_mask=(label_distributions[0] <= dissimilar_t)\
                                         .logical_and(label_distributions[0] > dissimilar_t - 0.1))
