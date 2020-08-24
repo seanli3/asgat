@@ -141,16 +141,13 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
 
     if dissimilar_t < 1 and not permute_masks:
         label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
-        # dissimilar_neighbhour_train_mask = dataset[0]['train_mask']\
-        #     .logical_and(label_distributions[0] <= dissimilar_t)\
-        #     .logical_and(label_distributions[0] > dissimilar_t - 0.1)
+        dissimilar_neighbhour_train_mask = dataset[0]['train_mask']\
+            .logical_and(label_distributions[0] <= dissimilar_t)
         dissimilar_neighbhour_val_mask = dataset[0]['val_mask']\
-            .logical_and(label_distributions[0] <= dissimilar_t)\
-            .logical_and(label_distributions[0] > dissimilar_t - 0.1)
+            .logical_and(label_distributions[0] <= dissimilar_t)
         dissimilar_neighbhour_test_mask = dataset[0]['test_mask']\
-            .logical_and(label_distributions[0] <= dissimilar_t)\
-            .logical_and(label_distributions[0] > dissimilar_t - 0.1)
-        # dataset.data.train_mask = dissimilar_neighbhour_train_mask
+            .logical_and(label_distributions[0] <= dissimilar_t)
+        dataset.data.train_mask = dissimilar_neighbhour_train_mask
         dataset.data.val_mask = dissimilar_neighbhour_val_mask
         dataset.data.test_mask = dissimilar_neighbhour_test_mask
 
@@ -167,8 +164,7 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     if permute_masks is not None:
         label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
         dataset.data = permute_masks(dataset.data, dataset.num_classes, lcc_mask=lcc_mask,
-                                     dissimilar_mask=(label_distributions[0] <= dissimilar_t)\
-                                        .logical_and(label_distributions[0] > dissimilar_t - 0.1))
+                                     dissimilar_mask=(label_distributions[0] <= dissimilar_t))
 
     if cuda:
         dataset.data.to('cuda')
