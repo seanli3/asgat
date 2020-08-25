@@ -52,7 +52,7 @@ class GraphSpectralFilterLayer(nn.Module):
     """
 
     def __init__(self, G, in_features, out_features, dropout, alpha, device,
-                 out_channels, chebyshev_order=16, pre_training=False, filter="analysis"):
+                 out_channels, concat=True, chebyshev_order=16, pre_training=False, filter="analysis"):
         super(GraphSpectralFilterLayer, self).__init__()
         self.G = G
         self.device=device
@@ -69,6 +69,7 @@ class GraphSpectralFilterLayer(nn.Module):
         self.filter_type = filter
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
         self.filter = Filter(self.G, self.filter_kernel, chebyshev_order=self.chebyshev_order)
+        self.concat = concat
 
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
@@ -131,8 +132,12 @@ class GraphSpectralFilterLayer(nn.Module):
                            h).div(divisor)
             assert not torch.isnan(h_prime).any()
             h_primes.append(F.elu(h_prime))
-            attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
-        return torch.cat(h_primes, dim=1), attentions
+            # attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
+
+        if self.concat:
+            return torch.cat(h_primes, dim=1), attentions
+        else:
+            return torch.stack(h_primes, dim=2).mean(dim=2), attentions
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

@@ -22,6 +22,7 @@ parser.add_argument('--weight_decay', type=float, default=7.530100210192558e-05)
 parser.add_argument('--patience', type=int, default=100)
 parser.add_argument('--hidden', type=int, default=63)
 parser.add_argument('--heads', type=int, default=14)
+parser.add_argument('--output_heads', type=int, default=1)
 parser.add_argument('--dropout', type=float, default=0.6174883141474811)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--pre_training', action='store_true')
@@ -61,7 +62,7 @@ class Net(torch.nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 alpha=args.alpha, chebyshev_order=args.chebyshev_order)
+                                                 alpha=args.alpha, chebyshev_order=args.chebyshev_order, concat=True)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
         #                             nn.Linear(128, 64),
@@ -75,8 +76,8 @@ class Net(torch.nn.Module):
 
         self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes, filter=args.filter,
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
-                                                  out_channels=1, alpha=args.alpha, pre_training=False,
-                                                  chebyshev_order=args.chebyshev_order)
+                                                  out_channels=args.output_heads, alpha=args.alpha, pre_training=False,
+                                                  chebyshev_order=args.chebyshev_order, concat=False)
 
     def reset_parameters(self):
         self.analysis.reset_parameters()
