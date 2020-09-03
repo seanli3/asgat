@@ -117,7 +117,7 @@ def evaluate(model, data):
         outs['{}_loss'.format(key)] = loss
         outs['{}_acc'.format(key)] = acc
 
-        outs['{}_micro_f1'] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='micro')
-        outs['{}_macro_f1'] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='macro')
+        outs['{}_micro_f1'.format(key)] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='micro')
+        outs['{}_macro_f1'.format(key)] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='macro')
 
     return outs
