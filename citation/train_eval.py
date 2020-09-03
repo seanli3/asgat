@@ -13,7 +13,7 @@ import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=None):
-    val_losses, train_accs, val_accs, test_accs, f1, durations = [], [], [], [], [], []
+    val_losses, train_accs, val_accs, test_accs, micro_f1s, macro_f1s, durations = [], [], [], [], [], []
     for _ in range(runs):
         dataset = use_dataset()
         data = dataset[0]
@@ -64,22 +64,26 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
         train_accs.append(eval_info_early_model['train_acc'])
         val_accs.append(eval_info_early_model['val_acc'])
         test_accs.append(eval_info_early_model['test_acc'])
-        f1.append(eval_info_early_model['f1_score'])
+        micro_f1s.append(eval_info_early_model['micro_f1'])
+        macro_f1s.append(eval_info_early_model['macro_f1'])
         durations.append(t_end - t_start)
 
-    val_losses, train_accs, val_accs, test_accs, f1, duration = tensor(val_losses), tensor(train_accs), tensor(val_accs), \
-                                                            tensor(test_accs), tensor(f1), tensor(durations)
+    val_losses, train_accs, val_accs, test_accs, micro_f1s, macro_f1s, duration = tensor(val_losses), tensor(train_accs), tensor(val_accs), \
+                                                            tensor(test_accs), tensor(micro_f1s), tensor(macro_f1s), tensor(durations)
 
-    print('Val Loss: {:.4f}, Train Accuracy: {:.3f} ± {:.3f}, Val Accuracy: {:.3f} ± {:.3f}, Test Accuracy: {:.3f} ± {:.3f}, F1: {:.3f} ± {:.3f}, Duration: {:.3f}'.
+    print('Val Loss: {:.4f} ± {:.3f}, Train Accuracy: {:.3f} ± {:.3f}, Val Accuracy: {:.3f} ± {:.3f}, Test Accuracy: {:.3f} ± {:.3f}, F1: {:.3f} ± {:.3f}, Duration: {:.3f}'.
           format(val_losses.mean().item(),
+                 val_losses.std().item(),
                  train_accs.mean().item(),
                  train_accs.std().item(),
                  val_accs.mean().item(),
                  val_accs.std().item(),
                  test_accs.mean().item(),
                  test_accs.std().item(),
-                 f1.mean().item(),
-                 f1.std().item(),
+                 micro_f1s.mean().item(),
+                 micro_f1s.std().item(),
+                 macro_f1s.mean().item(),
+                 macro_f1s.std().item(),
                  duration.mean().item()))
     return eval_info_early_model['test_acc']
 
@@ -113,6 +117,8 @@ def evaluate(model, data):
         outs['{}_loss'.format(key)] = loss
         outs['{}_acc'.format(key)] = acc
 
-    outs['f1_score'] = f1_score(data.y.cpu(), logits.max(1)[1].cpu(), average='micro')
+    outs['micro_f1'] = f1_score(data.y.cpu(), logits.max(1)[1].cpu(), average='micro')
+    outs['macro_f1'] = f1_score(data.y.cpu(), logits.max(1)[1].cpu(), average='macro')
+
 
     return outs

@@ -1,7 +1,7 @@
 import os.path as osp
 
 import torch
-from torch_geometric.datasets import TUDataset
+from torch_geometric.datasets import Planetoid, PPI, Amazon, Reddit, Coauthor, SNAPDataset, PPI, TUDataset
 from torch_geometric.utils import degree
 import torch_geometric.transforms as T
 
@@ -20,7 +20,21 @@ class NormalizedDegree(object):
 
 def get_dataset(name, sparse=True, cleaned=False):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
-    dataset = TUDataset(path, name, cleaned=cleaned)
+
+    if name in ['Computers', 'Photo']:
+        dataset = Amazon(path, name)
+    elif name in ['Cora', 'Citeseer', 'PubMed']:
+        dataset = Planetoid(path, name, split="full")
+    elif name in ['CS', 'Physics']:
+        dataset = Coauthor(path, name, split="full")
+    elif name in ['Reddit']:
+        dataset = Reddit(path)
+    elif name in ['ego-facebook', 'ego-gplus', 'ego-twitter', 'soc-epinions1', 'soc-livejournal1',
+                    'soc-pokec', 'soc-slashdot0811', 'soc-slashdot0922', 'wiki-vote']:
+        dataset = SNAPDataset(path, name)
+    else:
+        dataset = TUDataset(path, name, cleaned=cleaned)
+
     dataset.data.edge_attr = None
 
     if dataset.data.x is None:
