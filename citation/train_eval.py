@@ -13,7 +13,7 @@ import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=None):
-    val_losses, train_accs, val_accs, test_accs, micro_f1s, macro_f1s, durations = [], [], [], [], [], []
+    val_losses, train_accs, val_accs, test_accs, micro_f1s, macro_f1s, durations = [], [], [], [], [], [], []
     for _ in range(runs):
         dataset = use_dataset()
         data = dataset[0]
