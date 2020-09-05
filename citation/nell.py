@@ -105,7 +105,6 @@ class Nell(InMemoryDataset):
     def download(self):
         path = download_url('{}'.format(self.url), self.raw_dir)
         extract_tar(path, self.raw_dir)
-        os.unlink(path)
 
     def process(self):
         data = read_nell_data(self.raw_dir, self.variant)
