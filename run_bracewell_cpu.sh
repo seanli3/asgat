@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=citeseer
-#SBATCH --time=48:00:00
+#SBATCH --job-name=tuning_pubmed
+#SBATCH --time=128:00:00
 #SBATCH --mem=16GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
