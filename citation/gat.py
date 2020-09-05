@@ -52,15 +52,15 @@ class Net(torch.nn.Module):
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
         x = F.dropout(x, p=args.dropout, training=self.training)
-        x, (edge_index_1, att_val_1) = self.conv1(x, edge_index, return_attention_weights=True)
+        x, _ = self.conv1(x, edge_index, return_attention_weights=True)
         x = F.elu(x)
         x = F.dropout(x, p=args.dropout, training=self.training)
-        x, (edge_index_2, att_val_2) = self.conv2(x, edge_index, return_attention_weights=True)
-        att1 = torch.zeros(data.num_nodes, data.num_nodes, args.heads)
-        att2 = torch.zeros(data.num_nodes, data.num_nodes)
-        att1[list(map(lambda x: torch.tensor(x), edge_index_1.tolist()))] = att_val_1
-        att2[list(map(lambda x: torch.tensor(x), edge_index_2.tolist()))] = att_val_2.view(-1)
-        return F.log_softmax(x, dim=1), att1, att2
+        x, _ = self.conv2(x, edge_index, return_attention_weights=True)
+        # att1 = torch.zeros(data.num_nodes, data.num_nodes, args.heads)
+        # att2 = torch.zeros(data.num_nodes, data.num_nodes)
+        # att1[list(map(lambda x: torch.tensor(x), edge_index_1.tolist()))] = att_val_1
+        # att2[list(map(lambda x: torch.tensor(x), edge_index_2.tolist()))] = att_val_2.view(-1)
+        return F.log_softmax(x, dim=1), None, None
 
 
 permute_masks = random_planetoid_splits if args.random_splits else None

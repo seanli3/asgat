@@ -1,5 +1,5 @@
 import os.path as osp
-from torch_geometric.datasets import Planetoid, PPI, Amazon, Reddit, Coauthor, SNAPDataset, PPI
+from torch_geometric.datasets import Planetoid, PPI, Amazon, Reddit, Coauthor, SNAPDataset, PPI, TUDataset
 import torch_geometric.transforms as T
 from torch_geometric.utils import add_self_loops, dropout_adj
 from random import sample
@@ -10,6 +10,7 @@ import torch
 import networkx as nx
 from scipy.sparse import coo_matrix
 import numpy as np
+from .nell import Nell
 
 
 def matching_labels_distribution(dataset):
@@ -113,12 +114,15 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     if name in ['Computers', 'Photo']:
         dataset = Amazon(path, name)
-    elif name in ['Cora', 'Citeseer', 'PubMed']:
+    elif name in ['Cora', 'CiteSeer', 'PubMed']:
         dataset = Planetoid(path, name, split="full")
     elif name in ['CS', 'Physics']:
         dataset = Coauthor(path, name, split="full")
     elif name in ['Reddit']:
         dataset = Reddit(path)
+    elif name in ['nell.0.1', 'nell.0.01', 'nell.0.001']:
+        path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'Nell')
+        dataset = Nell(path, 'Nell', name)
     elif name in ['ego-facebook', 'ego-gplus', 'ego-twitter', 'soc-epinions1', 'soc-livejournal1',
                     'soc-pokec', 'soc-slashdot0811', 'soc-slashdot0922', 'wiki-vote']:
         dataset = SNAPDataset(path, name)

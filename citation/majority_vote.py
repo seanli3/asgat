@@ -66,6 +66,7 @@ class Net(torch.nn.Module):
              (dataset[0].edge_index[0].numpy(), dataset[0].edge_index[1].numpy())),
             shape=(dataset[0].num_nodes, dataset[0].num_nodes))
         self.G = nx.Graph(adj)
+
     def forward(self, data):
         train_nodes = set(data.train_mask.nonzero().view(-1).tolist())
 
