@@ -19,47 +19,52 @@ except ImportError:
 
 
 def read_nell_data(folder, prefix):
-    names = ['x', 'tx', 'allx', 'y', 'ty', 'ally', 'graph', 'test.index']
-    items = [read_file(folder, prefix, name) for name in names]
-    x, tx, allx, y, ty, ally, graph, test_index = items
-    train_index = torch.arange(y.size(0), dtype=torch.long)
-    val_index = torch.arange(y.size(0), y.size(0) + 500, dtype=torch.long)
+    processed_data_path = "{}/processed/{}.data.npz".format(folder, prefix)
+    if not os.path.isfile(processed_data_path):
+        names = ['x', 'tx', 'allx', 'y', 'ty', 'ally', 'graph', 'test.index']
+        items = [read_file(folder, prefix, name) for name in names]
+        x, tx, allx, y, ty, ally, graph, test_index = items
+        train_index = torch.arange(y.size(0), dtype=torch.long)
+        val_index = torch.arange(y.size(0), y.size(0) + 500, dtype=torch.long)
 
-    # Find relation nodes, add them as zero-vecs into the right position
-    test_idx_reorder = test_index
-    test_idx_range = np.sort(test_idx_reorder)
-    test_idx_range_full = range(allx.shape[0], len(graph))
-    isolated_node_idx = np.setdiff1d(test_idx_range_full, test_idx_reorder)
-    tx_extended = sp.lil_matrix((len(test_idx_range_full), x.shape[1]))
-    tx_extended[test_idx_range - allx.shape[0], :] = tx
-    tx = tx_extended
-    ty_extended = np.zeros((len(test_idx_range_full), y.shape[1]))
-    ty_extended[test_idx_range - allx.shape[0], :] = ty
-    ty = ty_extended
+        # Find relation nodes, add them as zero-vecs into the right position
+        test_idx_reorder = test_index
+        test_idx_range = np.sort(test_idx_reorder)
+        test_idx_range_full = range(allx.shape[0], len(graph))
+        isolated_node_idx = np.setdiff1d(test_idx_range_full, test_idx_reorder)
+        tx_extended = sp.lil_matrix((len(test_idx_range_full), x.shape[1]))
+        tx_extended[test_idx_range - allx.shape[0], :] = tx
+        tx = tx_extended
+        ty_extended = np.zeros((len(test_idx_range_full), y.shape[1]))
+        ty_extended[test_idx_range - allx.shape[0], :] = ty
+        ty = ty_extended
 
-    x = sp.vstack((allx, tx)).tolil()
-    x[test_idx_reorder, :] = x[test_idx_range, :]
-    y = sp.vstack((ally, ty)).tolil()
-    y[test_idx_reorder, :] = y[test_idx_range, :]
+        x = sp.vstack((allx, tx)).tolil()
+        x[test_idx_reorder, :] = x[test_idx_range, :]
+        y = sp.vstack((ally, ty)).tolil()
+        y[test_idx_reorder, :] = y[test_idx_range, :]
 
-    print("Creating feature vectors for relations - this might take a while...")
-    x = sp.hstack((x, sp.lil_matrix((x.shape[0], len(isolated_node_idx)))),
-                                  dtype=np.int32).todense()
-    x[isolated_node_idx, x.shape[1]:] = np.eye(len(isolated_node_idx))
+        print("Creating feature vectors for relations - this might take a while...")
+        x_extended = sp.hstack((x, sp.lil_matrix((x.shape[0], len(isolated_node_idx)))),
+                                      dtype=np.int32).todense()
+        x_extended[isolated_node_idx, x.shape[1]:] = np.eye(len(isolated_node_idx))
 
-    x = torch.tensor(x)
-    y = torch.tensor(y.todense()).max(dim=1)[1]
+        x = torch.tensor(x_extended)
+        y = torch.tensor(y.todense()).max(dim=1)[1]
 
-    train_mask = index_to_mask(train_index, size=y.size(0))
-    val_mask = index_to_mask(val_index, size=y.size(0))
-    test_mask = index_to_mask(test_index, size=y.size(0))
+        train_mask = index_to_mask(train_index, size=y.size(0))
+        val_mask = index_to_mask(val_index, size=y.size(0))
+        test_mask = index_to_mask(test_index, size=y.size(0))
 
-    edge_index = edge_index_from_dict(graph, num_nodes=y.size(0))
+        edge_index = edge_index_from_dict(graph, num_nodes=y.size(0))
 
-    data = Data(x=x, edge_index=edge_index, y=y)
-    data.train_mask = train_mask
-    data.val_mask = val_mask
-    data.test_mask = test_mask
+        data = Data(x=x, edge_index=edge_index, y=y)
+        data.train_mask = train_mask
+        data.val_mask = val_mask
+        data.test_mask = test_mask
+        torch.save(data, processed_data_path)
+    else:
+        data = torch.load(processed_data_path)
 
     return data
 
