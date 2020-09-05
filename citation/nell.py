@@ -3,6 +3,7 @@ import os
 
 import torch
 from torch_geometric.data import InMemoryDataset, download_url, extract_tar
+from torch_geometric.data.dataset import to_list
 from .read_nell_data import read_nell_data
 
 
@@ -100,7 +101,7 @@ class Nell(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return 'data.pt'
+        return 'data-{}.pt'.format(self.variant)
 
     def download(self):
         path = download_url('{}'.format(self.url), self.raw_dir)
