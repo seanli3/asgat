@@ -19,7 +19,7 @@ except ImportError:
 
 
 def read_nell_data(folder, prefix):
-    processed_data_path = "{}/processed/{}.data.npz".format(folder, prefix)
+    processed_data_path = "{}/{}.data.npz".format(folder, prefix)
     if not os.path.isfile(processed_data_path):
         names = ['x', 'tx', 'allx', 'y', 'ty', 'ally', 'graph', 'test.index']
         items = [read_file(folder, prefix, name) for name in names]
