@@ -48,7 +48,7 @@ def read_nell_data(folder, prefix):
                                   dtype=np.int32).todense()
     x_extended[isolated_node_idx, x.shape[1]:] = np.eye(len(isolated_node_idx))
 
-    x = torch.tensor(x_extended)
+    x = torch.tensor(x_extended).float()
     y = torch.tensor(y.todense()).max(dim=1)[1]
 
     train_mask = index_to_mask(train_index, size=y.size(0))
