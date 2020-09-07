@@ -117,7 +117,7 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     elif name in ['Cora', 'CiteSeer', 'PubMed']:
         dataset = Planetoid(path, name, split="full")
     elif name in ['CS', 'Physics']:
-        dataset = Coauthor(path, name, split="full")
+        dataset = Coauthor(path, name)
     elif name in ['Reddit']:
         dataset = Reddit(path)
     elif name in ['nell.0.1', 'nell.0.01', 'nell.0.001']:
@@ -169,9 +169,11 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         lcc_mask = list(data_nx.nodes)
 
     if permute_masks is not None:
-        label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
-        dataset.data = permute_masks(dataset.data, dataset.num_classes, lcc_mask=lcc_mask,
-                                     dissimilar_mask=(label_distributions[0] <= dissimilar_t))
+        # label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
+        dataset.data = permute_masks(dataset.data, dataset.num_classes, lcc_mask=lcc_mask)
+        for key in dataset.data.keys:
+            if key not in dataset.slices:
+                dataset.slices[key] = torch.tensor([0, dataset.data[key].shape[0]])
 
     if cuda:
         dataset.data.to('cuda')

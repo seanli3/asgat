@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch import nn
 from random import seed as rseed
 from numpy.random import seed as nseed
-from citation import get_dataset, random_planetoid_splits, run
+from citation import get_dataset, random_planetoid_splits, run, random_coauthor_amazon_splits
 from citation.train_eval import evaluate
 import numpy as np
 
@@ -99,7 +99,13 @@ class Net(torch.nn.Module):
         return F.log_softmax(x, dim=1), None, None
 
 
-permute_masks = random_planetoid_splits if args.random_splits else None
+if args.dataset == "Cora" or args.dataset == "CiteSeer" or args.dataset == "PubMed":
+    permute_masks = random_planetoid_splits if args.random_splits else None
+elif args.dataset == "CS" or args.dataset == "Physics":
+    permute_masks = random_coauthor_amazon_splits
+elif args.dataset == "Computers" or args.dataset == "Photo":
+    permute_masks = random_coauthor_amazon_splits
+
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
                                     permute_masks=permute_masks, cuda=args.cuda,
