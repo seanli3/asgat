@@ -17,7 +17,7 @@ parser.add_argument('--patience', type=int, default=100)
 parser.add_argument('--runs', type=int, default=1)
 parser.add_argument('--hidden', type=int, default=88)
 parser.add_argument('--heads', type=int, default=12)
-parser.add_argument('--model_path', type=str, default='best_{}_gpu.pkl')
+parser.add_argument('--model_path', type=str, default='best_pubmed_gpu.pkl')
 args = parser.parse_args()
 print(args)
 
