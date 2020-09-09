@@ -110,12 +110,12 @@ def random_coauthor_amazon_splits(data, num_classes, lcc_mask):
 
 
 def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None,
-                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False):
+                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full"):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     if name in ['Computers', 'Photo']:
         dataset = Amazon(path, name)
     elif name in ['Cora', 'CiteSeer', 'PubMed']:
-        dataset = Planetoid(path, name, split="full")
+        dataset = Planetoid(path, name, split=split)
     elif name in ['CS', 'Physics']:
         dataset = Coauthor(path, name)
     elif name in ['Reddit']:
@@ -126,6 +126,7 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     elif name in ['ego-facebook', 'ego-gplus', 'ego-twitter', 'soc-epinions1', 'soc-livejournal1',
                     'soc-pokec', 'soc-slashdot0811', 'soc-slashdot0922', 'wiki-vote']:
         dataset = SNAPDataset(path, name)
+
     if transform is not None and normalize_features:
         dataset.transform = T.Compose([T.NormalizeFeatures(), transform])
     elif normalize_features:
