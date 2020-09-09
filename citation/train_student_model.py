@@ -17,7 +17,7 @@ parser.add_argument('--patience', type=int, default=100)
 parser.add_argument('--runs', type=int, default=1)
 parser.add_argument('--hidden', type=int, default=88)
 parser.add_argument('--heads', type=int, default=12)
-parser.add_argument('--model_path', type=str, default='best_pubmed_gpu.pkl')
+parser.add_argument('--model_path', type=str, default='citation/model/best_PubMed_gpu.pkl')
 args = parser.parse_args()
 print(args)
 
@@ -81,6 +81,7 @@ class Net(torch.nn.Module):
     def forward(self, data):
         x = data.x
         x = F.dropout(x, p=dropout, training=self.training)
+        print(x.device, self.analysis.W.device)
         x, att1 = self.analysis(x)
         x = F.dropout(x, p=dropout, training=self.training)
         x, att2 = self.synthesis(x)
@@ -89,13 +90,9 @@ class Net(torch.nn.Module):
         return F.log_softmax(x, dim=1), last_layer, None
 
 dataset = get_dataset(dataset_name, normalize_features, edge_dropout=edge_dropout,
-                                node_feature_dropout=node_feature_dropout)
+                      cuda=cuda, node_feature_dropout=node_feature_dropout)
 
-if cuda:
-    dataset[0].to('cuda')
-
-
-student_heads = 1
+student_heads = 4
 
 
 #%%
@@ -133,7 +130,9 @@ class StudentNet(torch.nn.Module):
 #%%
 
 model = Net(dataset)
-model.load_state_dict(torch.load('./model/{}'.format(args.model_path),  map_location={'cuda:0': 'cpu'}))
+if cuda:
+    model.to('cuda')
+model.load_state_dict(torch.load('{}'.format(args.model_path),  map_location={'cuda:0': 'cpu'} if not cuda else None))
 
 # filter_kernel = model.analysis.filter_kernel
 
@@ -152,9 +151,11 @@ from torch.optim import Adam
 from sklearn.metrics import f1_score
 
 
-for _ in runs:
+for _ in range(runs):
     print('Runs', _)
     student = StudentNet(dataset)
+    if cuda:
+        student.to('cuda')
     student.reset_parameters()
     optimizer = Adam(student.parameters(), lr=lr, weight_decay=weight_decay)
     data = dataset.data
@@ -165,39 +166,38 @@ for _ in runs:
     bad_counter = 0
 
     for epoch in range(1, epochs + 1):
+        student.train()
         optimizer.zero_grad()
         logits, out, _ = student(data)
         loss = F.mse_loss(out, soft_target)
         loss.backward()
         optimizer.step()
-        student.train()
 
         # eval_info['epoch'] = epoch
-        if epoch % 100 == 0:
-            student.eval()
-            outs = {}
-            outs['loss'] = loss.item()
-            outs['epoch'] = epoch
-            for key in ['train', 'val', 'test']:
-                mask = data['{}_mask'.format(key)]
-                loss = F.nll_loss(logits[mask], data.y[mask]).item()
-                pred = logits[mask].max(1)[1]
-                outs['{}_loss'.format(key)] = loss
-                outs['{}_micro_f1'.format(key)] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='micro')
-                outs['{}_macro_f1'.format(key)] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='macro')
+        student.eval()
+        outs = {}
+        outs['loss'] = loss.item()
+        outs['epoch'] = epoch
+        for key in ['train', 'val', 'test']:
+            mask = data['{}_mask'.format(key)]
+            loss = F.nll_loss(logits[mask], data.y[mask]).item()
+            pred = logits[mask].max(1)[1]
+            outs['{}_loss'.format(key)] = loss
+            outs['{}_micro_f1'.format(key)] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='micro')
+            outs['{}_macro_f1'.format(key)] = f1_score(data.y[mask].cpu(), logits[mask].max(1)[1].cpu(), average='macro')
 
-            print(outs)
-        if eval_info['val_acc'] > best_val_acc or eval_info['val_loss'] < best_val_loss:
-            if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
-                eval_info_early_model = eval_info
+        if outs['val_micro_f1'] > best_val_acc or outs['val_loss'] < best_val_loss:
+            if outs['val_micro_f1'] >= best_val_acc and outs['val_loss'] <= best_val_loss:
+                eval_info_early_model = outs
                 # torch.save(model.state_dict(), './best_{}_appnp.pkl'.format(dataset.name))
-            best_val_acc = np.max((best_val_acc, eval_info['val_acc']))
-            best_val_loss = np.min((best_val_loss, eval_info['val_loss']))
+            best_val_acc = np.max((best_val_acc, outs['val_micro_f1']))
+            best_val_loss = np.min((best_val_loss, outs['val_loss']))
             bad_counter = 0
         else:
             bad_counter += 1
             if bad_counter == patience:
                 break
 
-        print(eval_info)
+        if epoch%10 == 0:
+            print(outs)
 
