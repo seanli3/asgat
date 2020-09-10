@@ -43,12 +43,13 @@ def read_nell_data(folder, prefix):
     y = sp.vstack((ally, ty)).tolil()
     y[test_idx_reorder, :] = y[test_idx_range, :]
 
-    print("Creating feature vectors for relations - this might take a while...")
-    x_extended = sp.hstack((x, sp.lil_matrix((x.shape[0], len(isolated_node_idx)))),
-                                  dtype=np.int32).todense()
-    x_extended[isolated_node_idx, x.shape[1]:] = np.eye(len(isolated_node_idx))
+    # print("Creating feature vectors for relations - this might take a while...")
+    # x_extended = sp.hstack((x, sp.lil_matrix((x.shape[0], len(isolated_node_idx)))),
+    #                               dtype=np.int32).todense()
+    # x_extended[isolated_node_idx, x.shape[1]:] = np.eye(len(isolated_node_idx))
+    # x = torch.tensor(x_extended).float()
 
-    x = torch.tensor(x_extended).float()
+    x = torch.tensor(x.todense()).float()
     y = torch.tensor(y.todense()).max(dim=1)[1]
 
     train_mask = index_to_mask(train_index, size=y.size(0))
