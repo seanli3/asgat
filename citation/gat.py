@@ -16,6 +16,7 @@ parser.add_argument('--lr', type=float, default=0.005)
 parser.add_argument('--weight_decay', type=float, default=0.0005)
 parser.add_argument('--patience', type=int, default=100)
 parser.add_argument('--hidden', type=int, default=8)
+parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--dropout', type=float, default=0.6)
 parser.add_argument('--normalize_features', type=bool, default=True)
@@ -24,6 +25,7 @@ parser.add_argument('--output_heads', type=int, default=1)
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
+parser.add_argument('--split', type=str, default='full')
 args = parser.parse_args()
 
 rseed(args.seed)
@@ -66,7 +68,7 @@ class Net(torch.nn.Module):
 permute_masks = random_planetoid_splits if args.random_splits else None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks,
-                                    node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t, lcc=False)
+                                    permute_masks=permute_masks, split=args.split, lcc=args.lcc,
+                                    node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)

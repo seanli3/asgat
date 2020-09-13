@@ -21,6 +21,7 @@ parser.add_argument('--dropout', type=float, default=0.5)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--num_stacks', type=int, default=1)
 parser.add_argument('--num_layers', type=int, default=1)
+parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--shared_weights', type=bool, default=False)
 parser.add_argument('--skip_dropout', type=float, default=0.75)
 parser.add_argument('--edge_dropout', type=float, default=0)
@@ -72,7 +73,7 @@ elif args.dataset == "Computers" or args.dataset == "Photo":
     permute_masks = random_coauthor_amazon_splits
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks,
-                                    node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t, lcc=False)
+                                    permute_masks=permute_masks, lcc=args.lcc,
+                                    node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)

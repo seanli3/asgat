@@ -16,6 +16,7 @@ parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--weight_decay', type=float, default=0.0005)
 parser.add_argument('--patience', type=int, default=100)
+parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--hidden', type=int, default=64)
 parser.add_argument('--dropout', type=float, default=0.5)
 parser.add_argument('--normalize_features', type=bool, default=True)
@@ -55,7 +56,7 @@ elif args.dataset == "Computers" or args.dataset == "Photo":
     permute_masks = random_coauthor_amazon_splits
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                      permute_masks=permute_masks,
-                      node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t, lcc=False)
+                      permute_masks=permute_masks, lcc=args.lcc,
+                      node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
