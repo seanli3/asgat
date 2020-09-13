@@ -134,8 +134,9 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     elif transform is not None:
         dataset.transform = transform
 
+    dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
+
     if edge_dropout:
-        # edge_list, _ = add_self_loops(dataset.data.edge_index)
         edge_list = dataset.data.edge_index
         num_edges = edge_list.shape[1]
         edge_list, _ = dropout_adj(edge_list, p=edge_dropout, force_undirected=True)
