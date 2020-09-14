@@ -57,10 +57,7 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
 
     if dataset[0].x is None:
-        data_ori = dataset[0]
-        data_nx = to_networkx(data_ori)
-        data_nx = data_nx.to_undirected()
-        dataset.data.x = F.one_hot(torch.tensor(list(dict(data_nx.degree()).values()))).float()
+        dataset.data.x = torch.ones(dataset.data.num_nodes[0], 1)
 
     dataset.data.train_idx, dataset.data.val_idx, dataset.data.train_y, dataset.data.val_y = train_test_split(dataset.data.train_idx, dataset.data.train_y, test_size = 0.2)
     dataset.data, dataset.slices = dataset.collate([dataset.data])
