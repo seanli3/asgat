@@ -1,5 +1,5 @@
 import os.path as osp
-from torch_geometric.datasets import Planetoid, PPI, Amazon, Reddit, Coauthor, SNAPDataset, PPI, TUDataset
+from torch_geometric.datasets import Planetoid, PPI, Amazon, Reddit, Coauthor, Flickr, Yelp
 import torch_geometric.transforms as T
 from torch_geometric.utils import add_self_loops, dropout_adj
 from random import sample
@@ -120,12 +120,13 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         dataset = Coauthor(path, name)
     elif name in ['Reddit']:
         dataset = Reddit(path)
+    elif name in ['Flickr']:
+        dataset = Flickr(path)
+    elif name in ['Yelp']:
+        dataset = Yelp(path)
     elif name in ['nell.0.1', 'nell.0.01', 'nell.0.001']:
         path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'Nell')
         dataset = Nell(path, 'Nell', name)
-    elif name in ['ego-facebook', 'ego-gplus', 'ego-twitter', 'soc-epinions1', 'soc-livejournal1',
-                    'soc-pokec', 'soc-slashdot0811', 'soc-slashdot0922', 'wiki-vote']:
-        dataset = SNAPDataset(path, name)
 
     if transform is not None and normalize_features:
         dataset.transform = T.Compose([T.NormalizeFeatures(), transform])
