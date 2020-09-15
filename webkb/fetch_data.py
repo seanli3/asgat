@@ -1,7 +1,7 @@
-from entities import get_dataset
+from webkb import get_dataset
 
 
 for data in ["Cornell", 'Texas', "Washington", "Wisconsin"]:
-    print('fetching '+ data);
+    print('fetching '+ data)
     get_dataset(data)
 

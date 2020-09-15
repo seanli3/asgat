@@ -1,4 +1,4 @@
-from entities import get_dataset
+from wikics import get_dataset
 
 
 for data in ["WikiCS"]:
