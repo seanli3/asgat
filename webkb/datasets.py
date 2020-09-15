@@ -1,5 +1,5 @@
 import os.path as osp
-from torch_geometric.datasets import WebKB
+from .webkb_data import WebKB
 import torch_geometric.transforms as T
 from torch_geometric.utils import add_self_loops, dropout_adj
 from random import sample
@@ -51,9 +51,8 @@ def matching_labels_distribution(dataset):
 def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None,
                 dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full"):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
-    if name in ["Cornell", 'Texas', "Washington", "Wisconsin"]:
-        dataset = WebKB(path, name)
-        dataset.data.y = dataset.data.y.long()
+    dataset = WebKB(path, name)
+    dataset.data.y = dataset.data.y.long()
 
     dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
 
