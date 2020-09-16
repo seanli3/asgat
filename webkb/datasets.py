@@ -11,6 +11,7 @@ import networkx as nx
 from scipy.sparse import coo_matrix
 import numpy as np
 from sklearn.model_selection import train_test_split
+from torch_geometric.utils import is_undirected, to_undirected
 
 
 def index_to_mask(index, size):
@@ -54,13 +55,13 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     dataset = WebKB(path, name)
     dataset.data.y = dataset.data.y.long()
 
-    dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
+    # dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
+
+    # if not is_undirected(dataset.data.edge_index):
+    #     dataset.data.edge_index = to_undirected(dataset.data.edge_index)
 
     if dataset[0].x is None:
         dataset.data.x = torch.ones(dataset.data.num_nodes[0], 1)
-
-    dataset.data.train_idx, val_test_idx, dataset.data.train_y, val_test_y = train_test_split(torch.arange(dataset[0].num_nodes), dataset[0].y, test_size=0.4)
-    dataset.data.val_idx, dataset.data.test_idx, dataset.data.val_y, dataset.data.test_y = train_test_split(val_test_idx, val_test_y, test_size=0.5)
 
     dataset.data, dataset.slices = dataset.collate([dataset.data])
 
@@ -85,15 +86,15 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
 
     if dissimilar_t < 1 and not permute_masks:
         label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
-        dissimilar_neighbhour_train_mask = index_to_mask(dataset[0]['train_idx'])\
+        dissimilar_neighbhour_train_mask = dataset[0]['train_mask'] \
             .logical_and(label_distributions[0] <= dissimilar_t)
-        dissimilar_neighbhour_val_mask = index_to_mask(dataset[0]['val_idx'])\
+        dissimilar_neighbhour_val_mask = dataset[0]['val_mask'] \
             .logical_and(label_distributions[0] <= dissimilar_t)
-        dissimilar_neighbhour_test_mask = index_to_mask(dataset[0]['test_idx'])\
+        dissimilar_neighbhour_test_mask = dataset[0]['test_mask'] \
             .logical_and(label_distributions[0] <= dissimilar_t)
-        dataset.data.train_idx = dissimilar_neighbhour_train_mask.nonzero().view(-1)
-        dataset.data.val_idx = dissimilar_neighbhour_val_mask.nonzero().view(-1)
-        dataset.data.test_idx = dissimilar_neighbhour_test_mask.nonzero().view(-1)
+        dataset.data.train_mask = dissimilar_neighbhour_train_mask
+        dataset.data.val_mask = dissimilar_neighbhour_val_mask
+        dataset.data.test_mask = dissimilar_neighbhour_test_mask
 
 
     lcc_mask = None
