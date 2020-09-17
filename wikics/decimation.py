@@ -29,7 +29,7 @@ parser.add_argument('--chebyshev_order', type=int, default=15, help='Chebyshev p
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
-parser.add_argument('--split', type=str, default='full')
+parser.add_argument('--split', type=int, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
 args = parser.parse_args()
 print(args)
@@ -102,4 +102,4 @@ use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_d
                                     permute_masks=permute_masks, cuda=args.cuda, lcc=args.lcc, split=args.split,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
-run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
+run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience, split=args.split)
