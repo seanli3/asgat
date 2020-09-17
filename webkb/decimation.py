@@ -46,16 +46,16 @@ args = parser.parse_args()
 print(args)
 
 
-# rseed(args.seed)
-# nseed(args.seed)
-# torch.manual_seed(args.seed)
+rseed(args.seed)
+nseed(args.seed)
+torch.manual_seed(args.seed)
 
 args.cuda = args.cuda and torch.cuda.is_available()
 
 
 if args.cuda:
     print("-----------------------Training on CUDA-------------------------")
-    # torch.cuda.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 class Net(torch.nn.Module):
