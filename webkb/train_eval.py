@@ -37,7 +37,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                 train(model, optimizer, data, split)
                 eval_info = evaluate(model, data, split)
                 eval_info['epoch'] = epoch
-                # if epoch % 100 == 0:
+                # if epoch % 10 == 0:
                 #     print(eval_info)
 
                 if logger is not None:
