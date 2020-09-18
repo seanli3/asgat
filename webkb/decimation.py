@@ -7,6 +7,17 @@ from random import seed as rseed
 from numpy.random import seed as nseed
 from webkb import get_dataset, run
 
+
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--random_splits', type=bool, default=False)
@@ -21,7 +32,7 @@ parser.add_argument('--hidden', type=int, default=63)
 parser.add_argument('--heads', type=int, default=14)
 parser.add_argument('--output_heads', type=int, default=1)
 parser.add_argument('--dropout', type=float, default=0.6174883141474811)
-parser.add_argument('--normalize_features', type=bool, default=True)
+parser.add_argument('--normalize_features', type=str2bool, default=True)
 parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')

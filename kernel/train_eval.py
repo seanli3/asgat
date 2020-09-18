@@ -51,6 +51,8 @@ def cross_validation_with_val_set(dataset, model, folds, epochs, batch_size,
                 'test_acc': accs[-1],
             }
 
+            # print(eval_info)
+
             if logger is not None:
                 logger(eval_info)
 

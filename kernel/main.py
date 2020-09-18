@@ -3,6 +3,7 @@ from itertools import product
 import argparse
 from datasets import get_dataset
 from train_eval import cross_validation_with_val_set
+from decimation import Decimation
 
 from gcn import GCN, GCNWithJK
 from graph_sage import GraphSAGE, GraphSAGEWithJK
@@ -28,22 +29,23 @@ layers = [1, 2, 3, 4, 5]
 hiddens = [16, 32, 64, 128]
 datasets = ['MUTAG', 'PROTEINS', 'IMDB-BINARY', 'REDDIT-BINARY']  # , 'COLLAB']
 nets = [
-    GCNWithJK,
-    GraphSAGEWithJK,
-    GIN0WithJK,
-    GINWithJK,
-    Graclus,
-    TopK,
-    SAGPool,
-    DiffPool,
-    EdgePool,
-    GCN,
-    GraphSAGE,
-    GIN0,
-    GIN,
-    GlobalAttentionNet,
-    Set2SetNet,
-    SortPool,
+    Decimation,
+    # GCNWithJK,
+    # GraphSAGEWithJK,
+    # GIN0WithJK,
+    # GINWithJK,
+    # Graclus,
+    # TopK,
+    # SAGPool,
+    # DiffPool,
+    # EdgePool,
+    # GCN,
+    # GraphSAGE,
+    # GIN0,
+    # GIN,
+    # GlobalAttentionNet,
+    # Set2SetNet,
+    # SortPool,
 ]
 
 
