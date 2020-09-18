@@ -57,11 +57,14 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
 
     # dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
 
-    # if not is_undirected(dataset.data.edge_index):
-    #     dataset.data.edge_index = to_undirected(dataset.data.edge_index)
+    if not is_undirected(dataset.data.edge_index):
+        dataset.data.edge_index = to_undirected(dataset.data.edge_index)
 
-    if dataset[0].x is None:
-        dataset.data.x = torch.ones(dataset.data.num_nodes[0], 1)
+    from torch.nn.functional import one_hot
+    # if dataset[0].x is None:
+    #     dataset.data.x = torch.ones(dataset.data.num_nodes[0], 1)
+
+    # dataset.data.x = one_hot(torch.arange(dataset.data.num_nodes)).float()
 
     dataset.data, dataset.slices = dataset.collate([dataset.data])
 
