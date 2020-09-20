@@ -51,8 +51,8 @@ class GraphSpectralFilterLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, G, in_features, out_features, dropout, alpha, device,
-                 out_channels, concat=True, chebyshev_order=16, pre_training=False, filter="analysis"):
+    def __init__(self, G, in_features, out_features, dropout, alpha, out_channels, device="cpu", concat=True,
+                 chebyshev_order=16, pre_training=False, filter="analysis"):
         super(GraphSpectralFilterLayer, self).__init__()
         self.G = G
         self.device=device
@@ -62,7 +62,13 @@ class GraphSpectralFilterLayer(nn.Module):
         self.out_channels = out_channels
         self.alpha = alpha
         self.pre_training = pre_training
-        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
+        # self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
+        self.linear = nn.Linear(in_features, out_features, bias=False)
+        # self.mlp = nn.Sequential(
+        #     nn.Linear(in_features, 512, bias=False),
+        #     nn.ReLU(),
+        #     nn.Linear(512, out_features, bias=False),
+        # )
         self.chebyshev_order = chebyshev_order
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.N = G.n_vertices
@@ -72,7 +78,11 @@ class GraphSpectralFilterLayer(nn.Module):
         self.concat = concat
 
     def reset_parameters(self):
-        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        # nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        self.linear.reset_parameters()
+        # for layer in self.mlp:
+        #     if hasattr(layer, 'reset_parameters'):
+        #         layer.reset_parameters()
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
         self.filter = Filter(self.G, self.filter_kernel, chebyshev_order=self.chebyshev_order)
 
@@ -100,7 +110,8 @@ class GraphSpectralFilterLayer(nn.Module):
                 k_optimizer.step()
 
     def forward(self, input):
-        h = torch.mm(input, self.W)
+        # h = torch.mm(input, self.W)
+        h = self.linear(input)
         N = h.shape[0]
         assert not torch.isnan(h).any()
 
