@@ -37,7 +37,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                 train(model, optimizer, data, split)
                 eval_info = evaluate(model, data, split)
                 eval_info['epoch'] = epoch
-                # if epoch % 10 == 0:
+                # if epoch % 100 == 0:
                 #     print(eval_info)
 
                 if logger is not None:
@@ -71,7 +71,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
     val_losses, train_accs, val_accs, test_accs, test_macro_f1s, duration = tensor(val_losses), tensor(train_accs), tensor(val_accs), \
                                                             tensor(test_accs), tensor(test_macro_f1s), tensor(durations)
 
-    print('Val Loss: {:.4f} ± {:.3f}, Train Accuracy: {:.3f} ± {:.3f}, Val Accuracy: {:.3f} ± {:.3f}, Test Accuracy: {:.3f} ± {:.3f}, Macro-F1: {:.3f} ± {:.3f}, Duration: {:.3f}'.
+    print('Val Loss: {:.4f} ± {:.3f}, Train Accuracy: {:.3f} ± {:.3f}, Val Accuracy: {:.3f} ± {:.3f}, Test Accuracy: {:.3f} ± {:.3f}, Macro-F1: {:.3f} ± {:.3f}, Duration: {:.3f}, Epoch: {}'.
           format(val_losses.mean().item(),
                  val_losses.std().item(),
                  train_accs.mean().item(),
@@ -82,7 +82,8 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                  test_accs.std().item(),
                  test_macro_f1s.mean().item(),
                  test_macro_f1s.std().item(),
-                 duration.mean().item()))
+                 duration.mean().item(),
+                 eval_info_early_model['epoch']))
     return eval_info_early_model['test_acc']
 
 
