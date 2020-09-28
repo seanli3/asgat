@@ -5,7 +5,7 @@ from torch_geometric.nn import ARMAConv
 from random import seed as rseed
 from numpy.random import seed as nseed
 
-from citation import get_dataset, random_planetoid_splits, run, random_coauthor_amazon_splits
+from webkb import get_dataset, run
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
@@ -65,12 +65,7 @@ class Net(torch.nn.Module):
         return F.log_softmax(x, dim=1), None
 
 
-if args.dataset == "Cora" or args.dataset == "CiteSeer" or args.dataset == "PubMed":
-    permute_masks = random_planetoid_splits if args.random_splits else None
-elif args.dataset == "CS" or args.dataset == "Physics":
-    permute_masks = random_coauthor_amazon_splits
-elif args.dataset == "Computers" or args.dataset == "Photo":
-    permute_masks = random_coauthor_amazon_splits
+permute_masks=None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
                                     permute_masks=permute_masks, lcc=args.lcc,
