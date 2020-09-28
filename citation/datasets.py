@@ -11,6 +11,7 @@ import networkx as nx
 from scipy.sparse import coo_matrix
 import numpy as np
 from .nell import Nell
+from .iris_data import Iris
 
 
 def matching_labels_distribution(dataset):
@@ -127,6 +128,8 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     elif name in ['nell.0.1', 'nell.0.01', 'nell.0.001']:
         path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'Nell')
         dataset = Nell(path, 'Nell', name)
+    elif name.lower() == 'iris':
+        dataset = Iris()
 
     if transform is not None and normalize_features:
         dataset.transform = T.Compose([T.NormalizeFeatures(), transform])
