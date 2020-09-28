@@ -103,7 +103,7 @@ def decimation(args):
 
     use_dataset = lambda: get_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
                                       permute_masks=None, cuda=args['cuda'], split=args['split'],
-                                      node_feature_dropout=args['node_feature_dropout'])
+                                      node_feature_dropout=args['node_feature_dropout'], self_loop=args['self_loop'])
 
     return run(use_dataset, Net, args['runs'], args['epochs'], args['lr'], args['weight_decay'],
         args['patience'], None)
@@ -121,6 +121,7 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'hidden', 'type': 'range', "bounds": [32, 512], "log_scale": True},
     {'name': 'heads', 'type': 'range', "bounds": [1, 18]},
     {'name': 'dropout', "type": "range", "bounds": [0.4, 0.9]},
+    {'name': 'self_loop', "type": "choice", "values": [True, False]},
     {'name': 'normalize_features', 'type': 'fixed', 'value': True},
     {'name': 'pre_training', 'type': 'fixed', 'value': False},
     {'name': 'cuda', 'type': 'fixed', 'value': args['cuda']},

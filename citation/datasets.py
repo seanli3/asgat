@@ -111,7 +111,7 @@ def random_coauthor_amazon_splits(data, num_classes, lcc_mask):
 
 
 def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None,
-                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full"):
+                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full", self_loop=True):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     if name in ['Computers', 'Photo']:
         dataset = Amazon(path, name)
@@ -138,7 +138,8 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     elif transform is not None:
         dataset.transform = transform
 
-    dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
+    if self_loop:
+        dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
 
     if edge_dropout:
         edge_list = dataset.data.edge_index
