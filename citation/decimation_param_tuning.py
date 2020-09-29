@@ -113,7 +113,7 @@ best_parameters, best_values, _, _ = optimize(
  parameters=[{'name': 'dataset', 'type': 'fixed', 'value': args['dataset']},
     {'name': 'runs', 'type': 'fixed', 'value': 1},
     {'name': 'epochs', 'type': 'fixed', 'value': 2000},
-    {'name': 'alpha', "type": "range", "bounds": [0.1, 1.0]},
+    {'name': 'alpha', "type": "fixed", "value": 0.2},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
     {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.001, 0.01], "log_scale": True},
     {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 0.005], "log_scale": True},
