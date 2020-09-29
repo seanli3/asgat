@@ -49,15 +49,13 @@ def matching_labels_distribution(dataset):
 
 
 def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None,
-                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full"):
+                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, self_loop=False):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     if name in ["WikiCS"]:
         dataset = WikiCS(path)
 
-    dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
-
-    dataset.data.train_idx, val_test_idx, dataset.data.train_y, val_test_y = train_test_split(torch.arange(dataset[0].num_nodes), dataset[0].y, test_size=0.4)
-    dataset.data.val_idx, dataset.data.test_idx, dataset.data.val_y, dataset.data.test_y = train_test_split(val_test_idx, val_test_y, test_size=0.5)
+    if self_loop:
+        dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
 
     dataset.data, dataset.slices = dataset.collate([dataset.data])
 
@@ -79,19 +77,6 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         drop_indices = sample(list(range(num_nodes)), int(node_feature_dropout * num_nodes))
         dataset.data.x.index_fill_(0, torch.tensor(drop_indices).cpu(), 0)
         print('Node feature dropout rate: {:.4f}' .format(len(drop_indices)/num_nodes))
-
-    if dissimilar_t < 1 and not permute_masks:
-        label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
-        dissimilar_neighbhour_train_mask = index_to_mask(dataset[0]['train_idx'])\
-            .logical_and(label_distributions[0] <= dissimilar_t)
-        dissimilar_neighbhour_val_mask = index_to_mask(dataset[0]['val_idx'])\
-            .logical_and(label_distributions[0] <= dissimilar_t)
-        dissimilar_neighbhour_test_mask = index_to_mask(dataset[0]['test_idx'])\
-            .logical_and(label_distributions[0] <= dissimilar_t)
-        dataset.data.train_idx = dissimilar_neighbhour_train_mask.nonzero().view(-1)
-        dataset.data.val_idx = dissimilar_neighbhour_val_mask.nonzero().view(-1)
-        dataset.data.test_idx = dissimilar_neighbhour_test_mask.nonzero().view(-1)
-
 
     lcc_mask = None
     if lcc:  # select largest connected component

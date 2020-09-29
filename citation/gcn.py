@@ -48,6 +48,7 @@ class Net(torch.nn.Module):
         x = self.conv2(x, edge_index)
         return F.log_softmax(x, dim=1), None
 
+permute_masks = None
 if args.dataset == "Cora" or args.dataset == "CiteSeer" or args.dataset == "PubMed":
     permute_masks = random_planetoid_splits if args.random_splits else None
 elif args.dataset == "CS" or args.dataset == "Physics":

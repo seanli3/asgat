@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from random import seed as rseed
 from numpy.random import seed as nseed
-from citation import get_dataset, run
+from webkb import get_dataset, run
 from ax import optimize
 import argparse
 
@@ -100,27 +100,27 @@ def decimation(args):
             # x = self.mlp(x)
             return F.log_softmax(x, dim=1), att1, att2
 
-    dataset = get_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
-                                    node_feature_dropout=args['node_feature_dropout'])
-    if args['cuda']:
-        dataset.data.to('cuda')
+    use_dataset = lambda: get_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
+                                      permute_masks=None, cuda=args['cuda'],
+                                      node_feature_dropout=args['node_feature_dropout'], self_loop=args['self_loop'])
 
-    return run(dataset, Net(dataset), args['runs'], args['epochs'], args['lr'], args['weight_decay'],
+    return run(use_dataset, Net, args['runs'], args['epochs'], args['lr'], args['weight_decay'],
         args['patience'], None)
 
 
 best_parameters, best_values, _, _ = optimize(
  parameters=[{'name': 'dataset', 'type': 'fixed', 'value': args['dataset']},
     {'name': 'runs', 'type': 'fixed', 'value': 1},
-    {'name': 'epochs', 'type': 'fixed', 'value': 300},
-    {'name': 'alpha', "type": "range", "bounds": [0.1, 1.0]},
+    {'name': 'epochs', 'type': 'fixed', 'value': 2000},
+    {'name': 'alpha', "type": "fixed", "value": 0.2},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
-    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.00001, 0.05], "log_scale": True},
-    {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 1.0], "log_scale": True},
-    {'name': 'patience', 'type': 'fixed', 'value': 10},
-    {'name': 'hidden', 'type': 'range', "bounds": [16, 88], "log_scale": False},
-    {'name': 'heads', 'type': 'range', "bounds": [6, 20]},
+    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.001, 0.01], "log_scale": True},
+    {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 0.005], "log_scale": True},
+    {'name': 'patience', 'type': 'fixed', 'value': 100},
+    {'name': 'hidden', 'type': 'range', "bounds": [16, 512], "log_scale": True},
+    {'name': 'heads', 'type': 'range', "bounds": [1, 18]},
     {'name': 'dropout', "type": "range", "bounds": [0.1, 0.9]},
+    {'name': 'self_loop', "type": "choice", "values": [True, False]},
     {'name': 'normalize_features', 'type': 'fixed', 'value': True},
     {'name': 'pre_training', 'type': 'fixed', 'value': False},
     {'name': 'cuda', 'type': 'fixed', 'value': args['cuda']},

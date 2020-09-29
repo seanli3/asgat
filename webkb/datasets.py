@@ -50,17 +50,18 @@ def matching_labels_distribution(dataset):
 
 
 def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None,
-                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full"):
+                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, self_loop=False):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     dataset = WebKB(path, name)
     dataset.data.y = dataset.data.y.long()
 
-    # dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
+    if self_loop:
+        dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
 
-    if not is_undirected(dataset.data.edge_index):
-        dataset.data.edge_index = to_undirected(dataset.data.edge_index)
+    # if not is_undirected(dataset.data.edge_index):
+    #     dataset.data.edge_index = to_undirected(dataset.data.edge_index)
 
-    from torch.nn.functional import one_hot
+    # from torch.nn.functional import one_hot
     # if dataset[0].x is None:
     #     dataset.data.x = torch.ones(dataset.data.num_nodes[0], 1)
 

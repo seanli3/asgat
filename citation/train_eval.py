@@ -45,7 +45,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
             if eval_info['val_acc'] > best_val_acc or eval_info['val_loss'] < best_val_loss:
                 if eval_info['val_acc'] >= best_val_acc and eval_info['val_loss'] <= best_val_loss:
                     eval_info_early_model = eval_info
-                    # torch.save(model.state_dict(), './best_{}_appnp.pkl'.format(dataset.name))
+                    # torch.save(model.state_dict(), './best_{}_mlp.pkl'.format(dataset.name))
                 best_val_acc = np.max((best_val_acc, eval_info['val_acc']))
                 best_val_loss = np.min((best_val_loss, eval_info['val_loss']))
                 bad_counter = 0
@@ -85,7 +85,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                  test_macro_f1s.mean().item(),
                  test_macro_f1s.std().item(),
                  duration.mean().item()))
-    return eval_info_early_model['test_acc']
+    return test_accs.mean().item()
 
 
 def train(model, optimizer, data):
