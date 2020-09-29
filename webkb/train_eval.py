@@ -84,7 +84,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                  test_macro_f1s.std().item(),
                  duration.mean().item(),
                  eval_info_early_model['epoch']))
-    return eval_info_early_model['test_acc']
+    return test_accs.mean().item()
 
 
 def train(model, optimizer, data, split):
