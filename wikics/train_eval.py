@@ -19,7 +19,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
     dataset = use_dataset()
     data = dataset[0]
 
-    for split in range(data.train_mask.shape[1].item()):
+    for split in range(data.train_mask.shape[1]):
         train_mask = data.train_mask[:, split].view(-1)
         val_mask = data.val_mask[:, split].view(-1)
         test_mask = data.test_mask

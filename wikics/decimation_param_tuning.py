@@ -10,7 +10,6 @@ from ax import optimize
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--trials', type=int, default=20)
 arg = parser.parse_args()
 
@@ -124,7 +123,6 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'normalize_features', 'type': 'fixed', 'value': True},
     {'name': 'pre_training', 'type': 'fixed', 'value': False},
     {'name': 'cuda', 'type': 'fixed', 'value': args['cuda']},
-    {'name': 'split', 'type': 'fixed', 'value': arg.split},
     {'name': 'chebyshev_order', 'type': 'range', "bounds": [12, 18]},
     {'name': 'edge_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
