@@ -13,13 +13,13 @@ import numpy as np
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=None):
+def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=None, split=0):
     val_losses, train_accs, val_accs, test_accs, test_macro_f1s, durations = [], [], [], [], [], []
 
     dataset = use_dataset()
     data = dataset[0]
 
-    for split in range(data.train_mask.shape[1]):
+    for _ in range(1):
         train_mask = data.train_mask[:, split].view(-1)
         val_mask = data.val_mask[:, split].view(-1)
         test_mask = data.test_mask
