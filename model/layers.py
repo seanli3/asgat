@@ -62,8 +62,8 @@ class GraphSpectralFilterLayer(nn.Module):
         self.out_channels = out_channels
         self.alpha = alpha
         self.pre_training = pre_training
-        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
-        # self.linear = nn.Linear(in_features, out_features, bias=False)
+        # self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
+        self.linear = nn.Linear(in_features, out_features, bias=False)
         # self.mlp = nn.Sequential(
         #     nn.Linear(in_features, 512, bias=False),
         #     nn.ReLU(),
@@ -78,8 +78,8 @@ class GraphSpectralFilterLayer(nn.Module):
         self.concat = concat
 
     def reset_parameters(self):
-        nn.init.xavier_uniform_(self.W.data, gain=1.414)
-        # self.linear.reset_parameters()
+        # nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        self.linear.reset_parameters()
         # for layer in self.mlp:
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
@@ -110,8 +110,8 @@ class GraphSpectralFilterLayer(nn.Module):
                 k_optimizer.step()
 
     def forward(self, input):
-        h = torch.mm(input, self.W)
-        # h = self.linear(input)
+        # h = torch.mm(input, self.W)
+        h = self.linear(input)
         N = h.shape[0]
         assert not torch.isnan(h).any()
 
