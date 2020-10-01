@@ -22,6 +22,8 @@ parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--num_hops', type=int, default=3)
 parser.add_argument('--edge_dropout', type=float, default=0)
+parser.add_argument('--split', type=str, default='full')
+parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
 args = parser.parse_args()
@@ -29,6 +31,14 @@ args = parser.parse_args()
 rseed(args.seed)
 nseed(args.seed)
 torch.manual_seed(args.seed)
+
+args.cuda = args.cuda and torch.cuda.is_available()
+
+if args.cuda:
+    print("-----------------------Training on CUDA-------------------------")
+    torch.cuda.manual_seed(args.seed)
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+
 
 class Net(torch.nn.Module):
     def __init__(self, dataset):
@@ -56,7 +66,7 @@ elif args.dataset == "Computers" or args.dataset == "Photo":
     permute_masks = random_coauthor_amazon_splits
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks, lcc=args.lcc,
+                                    permute_masks=permute_masks, lcc=args.lcc,split=args.split, cuda=args.cuda,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)

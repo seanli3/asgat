@@ -44,7 +44,6 @@ torch.manual_seed(args.seed)
 
 args.cuda = args.cuda and torch.cuda.is_available()
 
-
 if args.cuda:
     print("-----------------------Training on CUDA-------------------------")
     torch.cuda.manual_seed(args.seed)

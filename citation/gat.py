@@ -26,11 +26,20 @@ parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
 parser.add_argument('--split', type=str, default='full')
+parser.add_argument('--cuda', action='store_true')
 args = parser.parse_args()
 
 rseed(args.seed)
 nseed(args.seed)
 torch.manual_seed(args.seed)
+
+args.cuda = args.cuda and torch.cuda.is_available()
+
+if args.cuda:
+    print("-----------------------Training on CUDA-------------------------")
+    torch.cuda.manual_seed(args.seed)
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+
 
 class Net(torch.nn.Module):
     def __init__(self, dataset):
@@ -68,7 +77,7 @@ class Net(torch.nn.Module):
 permute_masks = random_planetoid_splits if args.random_splits else None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks, split=args.split, lcc=args.lcc,
+                                    permute_masks=permute_masks, split=args.split, lcc=args.lcc, cuda=args.cuda,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
