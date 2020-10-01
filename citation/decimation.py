@@ -25,6 +25,7 @@ parser.add_argument('--heads', type=int, default=14)
 parser.add_argument('--output_heads', type=int, default=1)
 parser.add_argument('--dropout', type=float, default=0.6174883141474811)
 parser.add_argument('--normalize_features', type=bool, default=True)
+parser.add_argument('--self_loop', type=bool, default=True)
 parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
@@ -106,7 +107,7 @@ elif args.dataset == "Computers" or args.dataset == "Photo":
     permute_masks = random_coauthor_amazon_splits
 
 
-use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
+use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout, self_loop=args.self_loop,
                                     permute_masks=permute_masks, cuda=args.cuda, lcc=args.lcc, split=args.split,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
