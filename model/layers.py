@@ -62,8 +62,8 @@ class GraphSpectralFilterLayer(nn.Module):
         self.out_channels = out_channels
         self.alpha = alpha
         self.pre_training = pre_training
-        # self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
-        self.linear = nn.Linear(in_features, out_features, bias=False)
+        self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
+        # self.linear = nn.Linear(in_features, out_features, bias=False)
         # self.mlp = nn.Sequential(
         #     nn.Linear(in_features, 512, bias=False),
         #     nn.ReLU(),
@@ -78,8 +78,8 @@ class GraphSpectralFilterLayer(nn.Module):
         self.concat = concat
 
     def reset_parameters(self):
-        # nn.init.xavier_uniform_(self.W.data, gain=1.414)
-        self.linear.reset_parameters()
+        nn.init.xavier_uniform_(self.W.data, gain=1.414)
+        # self.linear.reset_parameters()
         # for layer in self.mlp:
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
@@ -102,16 +102,16 @@ class GraphSpectralFilterLayer(nn.Module):
                     self.filter_kernel.eval()
                     val_predictions = self.filter_kernel(val_x)
                     val_loss = F.mse_loss(input=val_predictions, target=val_y, reduction="mean")
-                    # print(
-                    #     'kernel training epoch {} loss {} validation loss {}'.format(_, str(loss.item()),
-                    #                                                                  str(val_loss.item())))
+                    print(
+                        'kernel training epoch {} loss {} validation loss {}'.format(_, str(loss.item()),
+                                                                                     str(val_loss.item())))
                     self.filter_kernel.train()
                 loss.backward()
                 k_optimizer.step()
 
     def forward(self, input):
-        # h = torch.mm(input, self.W)
-        h = self.linear(input)
+        h = torch.mm(input, self.W)
+        # h = self.linear(input)
         N = h.shape[0]
         assert not torch.isnan(h).any()
 
@@ -143,7 +143,7 @@ class GraphSpectralFilterLayer(nn.Module):
                            h).div(divisor)
             assert not torch.isnan(h_prime).any()
             h_primes.append(F.elu(h_prime))
-            # attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
+            attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
 
         if self.concat:
             return torch.cat(h_primes, dim=1), attentions
