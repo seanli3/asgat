@@ -65,8 +65,10 @@ class Graph(object):
             indexDmA, valueDmA = spspmm(
                 d.indices().repeat(2, 1),
                 d.values(),
+                # d.values().double(),
                 self.A.indices(),
                 self.A.values(),
+                # self.A.values().double(),
                 self.n_vertices,
                 self.n_vertices,
                 self.n_vertices,
@@ -75,6 +77,7 @@ class Graph(object):
                 indexDmA,
                 valueDmA,
                 d.indices().repeat(2, 1),
+                # d.values().double(),
                 d.values(),
                 self.n_vertices,
                 self.n_vertices,
@@ -124,7 +127,8 @@ class Graph(object):
                 L_coo = coo_matrix((self.L.values().cpu(), self.L.indices().cpu().numpy()))
                 lmax = eigsh(L_coo.asfptype(), k=1, tol=5e-3,
                              ncv=min(self.n_vertices, 10),
-                             return_eigenvectors=False)
+                             # return_eigenvectors=False).astype('float16')
+                             return_eigenvectors = False)
                 lmax = lmax[0]
                 if lmax > self._get_upper_bound() + 1e-12:
                     lmax = 2
@@ -178,6 +182,7 @@ class Filter(nn.Module):
         a2 = (a_arange[1] + a_arange[0]) / 2
         c = []
 
+        # tmpN = torch.arange(N).double()
         tmpN = torch.arange(N)
         num = torch.cos(np.pi * (tmpN + 0.5) / N)
         for o in range(m + 1):
@@ -213,16 +218,16 @@ class Filter(nn.Module):
 
         factor = (2 / a1 * (G.L - a2 * self.signal)).coalesce()
 
-        fmt_index, fmt_value = spspmm(
-            factor.indices(),
-            factor.values(),
-            twf_cur.indices(),
-            twf_cur.values(),
-            G.n_vertices,
-            G.n_vertices,
-            G.n_vertices)
-
         for k in range(2, M):
+            fmt_index, fmt_value = spspmm(
+                factor.indices(),
+                factor.values(),
+                twf_cur.indices(),
+                twf_cur.values(),
+                G.n_vertices,
+                G.n_vertices,
+                G.n_vertices)
+
             twf_new = (torch.sparse_coo_tensor(fmt_index, fmt_value, [G.n_vertices, G.n_vertices]) - twf_old).coalesce()
             for i in range(nf):
                 r[i] = torch.sparse_coo_tensor(twf_new.indices(), twf_new.values() * c[k,i], twf_new.shape) + r[i]
@@ -230,9 +235,8 @@ class Filter(nn.Module):
             twf_old = twf_cur
             twf_cur = twf_new
 
-        tmp = np.sqrt(self.G.n_vertices)
         for i in range(len(r)):
-            r[i] = r[i].coalesce() * tmp
+            r[i] = r[i].coalesce()
         return r
 
     def forward(self) -> object:
