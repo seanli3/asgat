@@ -106,7 +106,7 @@ def decimation(args):
                                       node_feature_dropout=args['node_feature_dropout'], self_loop=args['self_loop'])
 
     return run(use_dataset, Net, args['runs'], args['epochs'], args['lr'], args['weight_decay'],
-        args['patience'], None)
+        args['patience'], None, cuda=args['cuda'])
 
 
 best_parameters, best_values, _, _ = optimize(
