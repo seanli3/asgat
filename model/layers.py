@@ -70,7 +70,7 @@ class GraphSpectralFilterLayer(nn.Module):
         #     nn.Linear(512, out_features, bias=False),
         # )
         self.chebyshev_order = chebyshev_order
-        self.leakyrelu = nn.LeakyReLU(self.alpha)
+        # self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.N = G.n_vertices
         self.filter_type = filter
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
@@ -123,9 +123,12 @@ class GraphSpectralFilterLayer(nn.Module):
             # overall_mean = torch.sparse.sum(coefficients) / N / N
             attention_indices = coefficients.indices()
             attention_values = coefficients.values()
-            attention_values = self.leakyrelu(attention_values)
-            overall_mean = attention_values.max() * 0.5
-            attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.lt(overall_mean)), torch.full_like(attention_values, -9e15), attention_values)
+            # attention_values = self.leakyrelu(attention_values)
+            overall_mean = attention_values.mean()
+            # attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.lt(overall_mean)), torch.full_like(attention_values, -9e15), attention_values)
+            non_zero_att_idx = (attention_values > overall_mean).nonzero().view(-1)
+            attention_values = attention_values[non_zero_att_idx]
+            attention_indices = attention_indices.index_select(1, non_zero_att_idx)
             attention_values = torch.exp(attention_values).clamp(max=9e15)
             divisor = spmm(attention_indices,
                            attention_values,
@@ -144,7 +147,7 @@ class GraphSpectralFilterLayer(nn.Module):
                            h).div(divisor)
             assert not torch.isnan(h_prime).any()
             h_primes.append(F.elu(h_prime))
-            attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
+            # attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
 
         if self.concat:
             return torch.cat(h_primes, dim=1), attentions
