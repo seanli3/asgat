@@ -10,9 +10,9 @@ from sklearn.metrics import f1_score
 import numpy as np
 # from torch_sparse import spmm
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=None):
+def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=None, cuda=False):
+    device = torch.device('cuda' if cuda else 'cpu')
     val_losses, train_accs, val_accs, test_accs, test_micro_f1s, test_macro_f1s, durations = [], [], [], [], [], [], []
     for _ in range(runs):
         dataset = use_dataset()
@@ -22,7 +22,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
         model.to(device).reset_parameters()
         optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-        if torch.cuda.is_available():
+        if cuda:
             torch.cuda.synchronize()
 
         t_start = time.perf_counter()
@@ -54,7 +54,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                 if bad_counter == patience:
                     break
 
-        if torch.cuda.is_available():
+        if cuda:
             torch.cuda.synchronize()
 
         t_end = time.perf_counter()
