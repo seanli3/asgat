@@ -121,8 +121,8 @@ class GraphSpectralFilterLayer(nn.Module):
 
         for coefficients in coefficients_list:
             # overall_mean = torch.sparse.sum(coefficients) / N / N
-            attention_indices = coefficients.indices()
-            attention_values = coefficients.values()
+            attention_indices = coefficients._indices()
+            attention_values = coefficients._values()
             # attention_values = self.leakyrelu(attention_values)
             overall_mean = attention_values.mean()
             # attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.lt(overall_mean)), torch.full_like(attention_values, -9e15), attention_values)

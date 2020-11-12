@@ -155,7 +155,7 @@ class Filter(nn.Module):
             [range(G.n_vertices), range(G.n_vertices)],
             torch.ones(G.n_vertices),
             [G.n_vertices, G.n_vertices]
-        ).coalesce()
+        )
 
     def evaluate(self, x):
         y = self._kernel(x)
@@ -205,38 +205,37 @@ class Filter(nn.Module):
         a2 = float(a_arange[1] + a_arange[0]) / 2.
 
         twf_old = self.signal
-        twf_cur = ((G.L - a2 * self.signal) / a1).coalesce()
+        twf_cur = ((G.L - a2 * self.signal) / a1)
 
         nf = c.shape[1]
         r = []
 
         for i in range(nf):
             r.append(
-                torch.sparse_coo_tensor(twf_old.indices(), twf_old.values() * 0.5 * c[0][i], twf_old.shape)
-                + torch.sparse_coo_tensor(twf_cur.indices(), twf_cur.values() * c[1][i], twf_cur.shape)
+                torch.sparse_coo_tensor(twf_old._indices(), twf_old._values() * 0.5 * c[0][i], twf_old.shape)
+                + torch.sparse_coo_tensor(twf_cur._indices(), twf_cur._values() * c[1][i], twf_cur.shape)
             )
 
-        factor = (2 / a1 * (G.L - a2 * self.signal)).coalesce()
+        factor = (2 / a1 * (G.L - a2 * self.signal))
 
         for k in range(2, M):
             fmt_index, fmt_value = spspmm(
-                factor.indices(),
-                factor.values(),
-                twf_cur.indices(),
-                twf_cur.values(),
+                factor._indices(),
+                factor._values(),
+                twf_cur._indices(),
+                twf_cur._values(),
                 G.n_vertices,
                 G.n_vertices,
-                G.n_vertices)
+                G.n_vertices,
+                True)
 
-            twf_new = (torch.sparse_coo_tensor(fmt_index, fmt_value, [G.n_vertices, G.n_vertices]) - twf_old).coalesce()
+            twf_new = (torch.sparse_coo_tensor(fmt_index, fmt_value, [G.n_vertices, G.n_vertices]) - twf_old)
             for i in range(nf):
-                r[i] = torch.sparse_coo_tensor(twf_new.indices(), twf_new.values() * c[k,i], twf_new.shape) + r[i]
+                r[i] = torch.sparse_coo_tensor(twf_new._indices(), twf_new._values() * c[k,i], twf_new.shape) + r[i]
 
             twf_old = twf_cur
             twf_cur = twf_new
 
-        for i in range(len(r)):
-            r[i] = r[i].coalesce()
         return r
 
     def forward(self) -> object:
