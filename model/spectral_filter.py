@@ -100,6 +100,9 @@ class Filter(nn.Module):
             twf_old = twf_cur
             twf_cur = twf_new
 
+        for i in range(len(r)):
+            r[i] = r[i].coalesce()
+
         return r
 
     def forward(self) -> object:
