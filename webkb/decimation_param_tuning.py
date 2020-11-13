@@ -57,9 +57,7 @@ def decimation(args):
         def __init__(self, dataset):
             super(Net, self).__init__()
             data = dataset.data
-            adj = torch.sparse_coo_tensor(data.edge_index, torch.ones(data.num_edges))
-            self.G = Graph(adj)
-            self.G.estimate_lmax()
+            self.G = Graph(data)
 
             self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args['hidden'],
                                                      dropout=args['dropout'], out_channels=args['heads'], filter=args['filter'],
