@@ -138,6 +138,12 @@ class GraphSpectralFilterLayer(nn.Module):
             # Avoid dividing by zero
             divisor = divisor.masked_fill(divisor == 0, 1)
 
+            # dropout
+            kprob = 1 - self.dropout
+            mask = ((torch.rand(attention_values.size()) + kprob).floor()).type(torch.bool)
+            attention_indices = attention_indices[:, mask]
+            attention_values = attention_values[mask]
+
             h_prime = spmm(attention_indices,
                            F.dropout(attention_values,
                                      training=self.training,
