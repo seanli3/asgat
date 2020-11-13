@@ -5,142 +5,31 @@ from scipy.sparse import coo_matrix
 import numpy as np
 import torch.nn as nn
 from torch_sparse import spspmm
+from torch_geometric.utils import remove_self_loops, add_self_loops
+from torch_geometric.utils import get_laplacian
 
 
 class Graph(object):
-    def __init__(self, A: torch.Tensor, lap_type="normalized"):
-        self.A = A.float().coalesce()
+    def __init__(self, data, lap_type="normalized"):
         self.lap_type = lap_type
-        self.n_vertices = self.A.shape[0]
-        self.n_edges = len(self.A.values())
-        self.L = None
-        self._lmax = None
-        self._D = None
-        self._dw = None
-        self._lmax_method = None
+        self.data = data
+        edge_index, edge_weight = remove_self_loops(data.edge_index)
 
-        self.compute_laplacian(lap_type)
+        edge_index, edge_weight = get_laplacian(edge_index, edge_weight, 'sym', data.x.dtype, data.num_nodes)
+        lambda_max = torch.tensor(2.0, dtype=data.x.dtype, device=data.x.device)
 
-    def _get_upper_bound(self):
-        if self.lap_type == 'normalized':
-            return 2.0  # Equal iff the graph is bipartite.
-        elif self.lap_type == 'combinatorial':
-            bounds = []
-            # Equal for full graphs.
-            bounds += [self.n_vertices * torch.max(self.A)]
-            # Gershgorin circle theorem. Equal for regular bipartite graphs.
-            # Special case of the below bound.
-            bounds += [2 * torch.max(self.dw)]
-            # Anderson, Morley, Eigenvalues of the Laplacian of a graph.
-            # Equal for regular bipartite graphs.
-            if self.n_edges > 0:
-                sources, targets = self.A.nonzero(as_tuple=True)
-                bounds += [torch.max(self.dw[sources] + self.dw[targets])]
-            m = self.A.dot(self.dw) / self.dw  # Mean degree of adjacent vertices.
-            bounds += [torch.max(self.dw + m)]
-            # Good review: On upper bounds for Laplacian graph eigenvalues.
-            return min(bounds)
-        elif self.lap_type == 'hermitian':
-            return torch.max(torch.symeig(self.L)[0])
-        elif self.lap_type == 'random walk':
-            return torch.max(1 - torch.eig(self.L)[0].T[0])
-        else:
-            raise ValueError('Unknown Laplacian type '
-                             '{}'.format(self.lap_type))
+        edge_weight = (2.0 * edge_weight) / lambda_max
+        edge_weight.masked_fill_(edge_weight == float('inf'), 0)
 
-    def compute_laplacian(self, lap_type='combinatorial', q=0.02):
-        if lap_type != self.lap_type:
-            # Those attributes are invalidated when the Laplacian is changed.
-            # Alternative: don't allow the user to change the Laplacian.
-            self._lmax = None
-            self._D = None
+        edge_index, edge_weight = add_self_loops(edge_index, edge_weight,
+                                                 fill_value=-1.,
+                                                 num_nodes=data.num_nodes)
+        assert edge_weight is not None
 
-        self.lap_type = lap_type
-
-        if lap_type == 'combinatorial':
-            self.L = self.D - self.A
-        elif lap_type == 'normalized':
-            d = torch.pow(self.dw, -0.5)
-            diagonal_indices = torch.tensor([list(range(self.n_vertices)), list(range(self.n_vertices))])
-            indexDmA, valueDmA = spspmm(
-                d.indices().repeat(2, 1),
-                d.values(),
-                # d.values().double(),
-                self.A.indices(),
-                self.A.values(),
-                # self.A.values().double(),
-                self.n_vertices,
-                self.n_vertices,
-                self.n_vertices,
-            )
-            indexDmAmD, valueDmAmD = spspmm(
-                indexDmA,
-                valueDmA,
-                d.indices().repeat(2, 1),
-                # d.values().double(),
-                d.values(),
-                self.n_vertices,
-                self.n_vertices,
-                self.n_vertices
-            )
-            self.L = torch.sparse_coo_tensor(diagonal_indices, torch.ones(self.n_vertices),
-                                             [self.n_vertices, self.n_vertices]) \
-                     - torch.sparse_coo_tensor(indexDmAmD, valueDmAmD, [self.n_vertices, self.n_vertices])
-            self.L = self.L.coalesce()
-        elif lap_type == 'hermitian':
-            sym_weighted_adajacency_matrix = (self.A + self.A.T) / 2
-            Gamma_q = torch.pow(np.e, 2j * np.pi * q * (self.A - self.A.T))
-            self.L = self.D - Gamma_q.mm(sym_weighted_adajacency_matrix)
-        elif lap_type == 'random walk':
-            self.L = torch.inverse(torch.diag(self.dw)).mm(self.A)
-        else:
-            raise ValueError('Unknown Laplacian type {}'.format(lap_type))
-
-    @property
-    def dw(self):
-        if self._dw is None:
-            self._dw = torch.sparse.sum(self.A, dim=0).float()
-        return self._dw
-
-    @property
-    def lmax(self):
-        if self._lmax is None:
-            self.estimate_lmax()
-        return self._lmax
-
-    @property
-    def D(self):
-        if self._D is None:
-            self._D = torch.sparse_coo_tensor([range(self.n_vertices), range(self.n_vertices)],
-                                        self.dw.values(), [self.n_vertices, self.n_vertices])
-        return self._D
-
-    def estimate_lmax(self, method='lanczos'):
-        if method == self._lmax_method:
-            return
-        self._lmax_method = method
-
-        if method == 'lanczos':
-            try:
-                # We need to cast the matrix L to a supported type.
-                # TODO: not good for memory. Cast earlier?
-                L_coo = coo_matrix((self.L.values().cpu(), self.L.indices().cpu().numpy()))
-                lmax = eigsh(L_coo.asfptype(), k=1, tol=5e-3,
-                             ncv=min(self.n_vertices, 10),
-                             # return_eigenvectors=False).astype('float16')
-                             return_eigenvectors = False)
-                lmax = lmax[0]
-                if lmax > self._get_upper_bound() + 1e-12:
-                    lmax = 2
-                lmax *= 1.01  # Increase by 1% to be robust to errors.
-                self._lmax = lmax
-            except ArpackNoConvergence:
-                raise ValueError('The Lanczos method did not converge. '
-                                 'Try to use bounds.')
-        elif method == 'bounds':
-            self._lmax = self._get_upper_bound()
-        else:
-            raise ValueError('Unknown method {}'.format(method))
+        self.edge_index = edge_index
+        self.edge_weight = edge_weight
+        self.n_vertices = data.num_nodes
+        self.lmax = lambda_max.item()
 
 
 class Filter(nn.Module):
@@ -151,26 +40,9 @@ class Filter(nn.Module):
         self._kernel = kernel
         self.chebyshev_order = chebyshev_order
 
-        self.signal = torch.sparse_coo_tensor(
-            [range(G.n_vertices), range(G.n_vertices)],
-            torch.ones(G.n_vertices),
-            [G.n_vertices, G.n_vertices]
-        )
-
     def evaluate(self, x):
         y = self._kernel(x)
         return y
-
-    def cheby_eval(self, x):
-        x = x.view(-1, 1)
-        a, b = 0, self.G.lmax
-        y = (2.0 * x - a - b) * (1.0 / (b - a))
-        y2 = 2.0 * y
-        c = self.compute_cheby_coeff(m=self.chebyshev_order)
-        (d, dd) = (c[-1], 0)  # Special case first step for efficiency
-        for cj in c.flip(0)[1:-1]:  # Clenshaw's recurrence
-            (d, dd) = (y2 * d - dd + cj, d)
-        return y * d - dd + 0.5 * c[0]
 
     def compute_cheby_coeff(self, m: int = 32, N: int = None) -> torch.Tensor:
         if not N:
@@ -182,7 +54,6 @@ class Filter(nn.Module):
         a2 = (a_arange[1] + a_arange[0]) / 2
         c = []
 
-        # tmpN = torch.arange(N).double()
         tmpN = torch.arange(N)
         num = torch.cos(np.pi * (tmpN + 0.5) / N)
         for o in range(m + 1):
@@ -204,34 +75,27 @@ class Filter(nn.Module):
         a1 = float(a_arange[1] - a_arange[0]) / 2.
         a2 = float(a_arange[1] + a_arange[0]) / 2.
 
-        twf_old = self.signal
-        twf_cur = ((G.L - a2 * self.signal) / a1)
+        twf_old = torch.eye(G.n_vertices)
+        twf_cur = torch.zeros(G.n_vertices, G.n_vertices).index_put((G.edge_index[0], G.edge_index[1]), G.edge_weight)
+        twf_cur = (twf_cur - a2*torch.eye(G.n_vertices)) / a1
 
         nf = c.shape[1]
         r = []
 
         for i in range(nf):
-            r.append(
-                torch.sparse_coo_tensor(twf_old._indices(), twf_old._values() * 0.5 * c[0][i], twf_old.shape)
-                + torch.sparse_coo_tensor(twf_cur._indices(), twf_cur._values() * c[1][i], twf_cur.shape)
-            )
+            r.append(twf_old.to_sparse() * 0.5 * c[0][i] + twf_cur.to_sparse() * c[1][i])
 
-        factor = (2 / a1 * (G.L - a2 * self.signal))
+        factor = (2 / a1) * (
+                torch.sparse_coo_tensor(G.edge_index, G.edge_weight, (G.n_vertices, G.n_vertices)) -
+                torch.sparse_coo_tensor(
+                    [range(G.n_vertices), range(G.n_vertices)], torch.ones(G.n_vertices)*a2, [G.n_vertices, G.n_vertices]
+                )
+        )
 
         for k in range(2, M):
-            fmt_index, fmt_value = spspmm(
-                factor._indices(),
-                factor._values(),
-                twf_cur._indices(),
-                twf_cur._values(),
-                G.n_vertices,
-                G.n_vertices,
-                G.n_vertices,
-                True)
-
-            twf_new = (torch.sparse_coo_tensor(fmt_index, fmt_value, [G.n_vertices, G.n_vertices]) - twf_old)
+            twf_new = factor.mm(twf_cur) - twf_old
             for i in range(nf):
-                r[i] = torch.sparse_coo_tensor(twf_new._indices(), twf_new._values() * c[k,i], twf_new.shape) + r[i]
+                r[i] = twf_new.to_sparse()*c[k,i] + r[i]
 
             twf_old = twf_cur
             twf_cur = twf_new
