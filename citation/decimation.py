@@ -53,7 +53,7 @@ if args.cuda:
 class Net(torch.nn.Module):
     def __init__(self, dataset):
         super(Net, self).__init__()
-        data = dataset.data
+        data = dataset[0]
         self.G = Graph(data)
 
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,

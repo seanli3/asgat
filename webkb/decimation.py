@@ -56,12 +56,15 @@ args.cuda = args.cuda and torch.cuda.is_available()
 if args.cuda:
     print("-----------------------Training on CUDA-------------------------")
     torch.cuda.manual_seed(args.seed)
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 class Net(torch.nn.Module):
     def __init__(self, dataset):
         super(Net, self).__init__()
-        data = dataset.data
+        data = dataset[0]
+
+        if args.cuda:
+            data.to('cuda')
+
         # adj = torch.sparse_coo_tensor(data.edge_index, torch.ones(data.num_edges))
         self.G = Graph(data)
 
@@ -85,6 +88,9 @@ class Net(torch.nn.Module):
                                                   out_channels=args.output_heads, alpha=args.alpha, pre_training=False,
                                                   chebyshev_order=args.chebyshev_order, concat=False)
 
+        if args.cuda:
+            self.to('cuda')
+
     def reset_parameters(self):
         self.analysis.reset_parameters()
         # torch.nn.init.xavier_uniform_(self.W.data, gain=1.414)
@@ -92,6 +98,8 @@ class Net(torch.nn.Module):
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
         self.synthesis.reset_parameters()
+        if args.cuda:
+            self.to('cuda')
 
     def forward(self, data):
         x = data.x

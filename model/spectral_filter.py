@@ -2,31 +2,104 @@
 import torch
 import numpy as np
 import torch.nn as nn
-from torch_geometric.utils import remove_self_loops, add_self_loops
-from torch_geometric.utils import get_laplacian
+from scipy.sparse import coo_matrix
+from scipy import sparse
+from torch_sparse import spspmm
 
 
 class Graph(object):
     def __init__(self, data, lap_type="normalized"):
-        self.lap_type = lap_type
         self.data = data
-        edge_index, edge_weight = remove_self_loops(data.edge_index)
-
-        edge_index, edge_weight = get_laplacian(edge_index, edge_weight, 'sym', data.x.dtype, data.num_nodes)
-        lambda_max = torch.tensor(2.0, dtype=data.x.dtype, device=data.x.device)
-
-        edge_weight = (2.0 * edge_weight) / lambda_max
-        edge_weight.masked_fill_(edge_weight == float('inf'), 0)
-
-        edge_index, edge_weight = add_self_loops(edge_index, edge_weight,
-                                                 fill_value=-1.,
-                                                 num_nodes=data.num_nodes)
-        assert edge_weight is not None
-
-        self.edge_index = edge_index
-        self.edge_weight = edge_weight
         self.n_vertices = data.num_nodes
-        self.lmax = lambda_max.item()
+        self.lap_type = lap_type
+        self.L = None
+        self._lmax = None
+        self._dw = None
+        self._lmax_method = None
+
+        self.compute_laplacian(lap_type)
+
+    def _get_upper_bound(self):
+        return 2.0  # Equal iff the graph is bipartite.
+
+    def compute_laplacian(self, lap_type='combinatorial', q=0.02):
+        if lap_type != self.lap_type:
+            # Those attributes are invalidated when the Laplacian is changed.
+            # Alternative: don't allow the user to change the Laplacian.
+            self._lmax = None
+
+        self.lap_type = lap_type
+
+        d = torch.pow(self.dw, -0.5)
+        diagonal_indices = torch.tensor([list(range(self.n_vertices)), list(range(self.n_vertices))])
+        A = torch.sparse_coo_tensor(self.data.edge_index.to('cpu'), torch.ones(self.data.num_edges, device='cpu')).coalesce()
+        indexDmA, valueDmA = spspmm(
+            d.indices().repeat(2, 1),
+            d.values(),
+            # d.values().double(),
+            A.indices(),
+            A.values(),
+            # self.A.values().double(),
+            self.n_vertices,
+            self.n_vertices,
+            self.n_vertices,
+        )
+        indexDmAmD, valueDmAmD = spspmm(
+            indexDmA,
+            valueDmA,
+            d.indices().repeat(2, 1),
+            # d.values().double(),
+            d.values(),
+            self.n_vertices,
+            self.n_vertices,
+            self.n_vertices
+        )
+        self.L = (torch.sparse_coo_tensor(diagonal_indices, torch.ones(self.n_vertices),
+                                         [self.n_vertices, self.n_vertices]) \
+                 - torch.sparse_coo_tensor(indexDmAmD, valueDmAmD, [self.n_vertices, self.n_vertices])).to_dense()
+
+        self.L.to(self.data.x.device)
+
+    @property
+    def dw(self):
+        if self._dw is None:
+            A = torch.sparse_coo_tensor(self.data.edge_index.to('cpu'), torch.ones(self.data.num_edges, device='cpu')).coalesce()
+            self._dw = torch.sparse.sum(A, dim=0).float().to('cpu')
+        return self._dw
+
+    @property
+    def lmax(self):
+        if self._lmax is None:
+            self.estimate_lmax()
+        return self._lmax
+
+    def estimate_lmax(self, method='lanczos'):
+        if method == self._lmax_method:
+            return
+        self._lmax_method = method
+
+        if method == 'lanczos':
+            try:
+                # We need to cast the matrix L to a supported type.
+                # TODO: not good for memory. Cast earlier?
+                L = self.L.to('cpu').to_sparse()
+                L_coo = coo_matrix((L.values().numpy(), L.indices().numpy()))
+                lmax = sparse.linalg.eigsh(L_coo.asfptype(), k=1, tol=5e-3,
+                             ncv=min(self.n_vertices, 10),
+                             # return_eigenvectors=False).astype('float16')
+                             return_eigenvectors = False)
+                lmax = lmax[0]
+                if lmax > self._get_upper_bound() + 1e-12:
+                    lmax = 2
+                lmax *= 1.01  # Increase by 1% to be robust to errors.
+                self._lmax = lmax
+            except sparse.linalg.ArpackNoConvergence:
+                raise ValueError('The Lanczos method did not converge. '
+                                 'Try to use bounds.')
+        elif method == 'bounds':
+            self._lmax = self._get_upper_bound()
+        else:
+            raise ValueError('Unknown method {}'.format(method))
 
 
 class Filter(nn.Module):
@@ -73,8 +146,7 @@ class Filter(nn.Module):
         a2 = float(a_arange[1] + a_arange[0]) / 2.
 
         twf_old = torch.eye(G.n_vertices)
-        L = torch.zeros(G.n_vertices, G.n_vertices).index_put_((G.edge_index[0], G.edge_index[1]), G.edge_weight)
-        twf_cur = (L - a2*torch.eye(G.n_vertices)) / a1
+        twf_cur = (G.L - a2*torch.eye(G.n_vertices)) / a1
 
         nf = c.shape[1]
         r = torch.empty(nf*G.n_vertices, G.n_vertices)
@@ -83,7 +155,7 @@ class Filter(nn.Module):
         for i in range(nf):
             r[tmpN + G.n_vertices*i, :] = twf_old * 0.5 * c[0][i] + twf_cur * c[1][i]
 
-        factor = (2 / a1) * (L - a2*torch.eye(G.n_vertices))
+        factor = (2 / a1) * (G.L - a2*torch.eye(G.n_vertices))
 
         for k in range(2, M):
             twf_new = factor.mm(twf_cur) - twf_old
@@ -111,75 +183,3 @@ class Filter(nn.Module):
         s = self.cheby_op(c)
 
         return s
-
-    def localize(self, i, **kwargs):
-        s = torch.zeros(self.G.n_vertices)
-        s[i] = 1
-
-        return np.sqrt(self.G.n_vertices) * self.forward(s, **kwargs)
-
-    def estimate_frame_bounds(self, x=None):
-        if x is None:
-            x = torch.linspace(0, self.G.lmax, 1000)
-
-        sum_filters = torch.sum(self.evaluate(x) ** 2, dim=0)
-
-        return sum_filters.min(), sum_filters.max()
-
-    def complement(self, frame_bound=None):
-        def kernel(x):
-            y = self.evaluate(x)
-            y = torch.pow(y, 2)
-            y = torch.sum(y, dim=1)
-
-            if frame_bound is None:
-                bound = y.max()
-            elif y.max() > frame_bound:
-                raise ValueError('The chosen bound is not feasible. '
-                                 'Choose at least {}.'.format(y.max()))
-            else:
-                bound = frame_bound
-
-            return torch.sqrt(bound - y)
-
-        return Filter(self.G, kernel)
-
-    def inverse(self):
-        A, _ = self.estimate_frame_bounds()
-        if A == 0:
-            raise ValueError('The filter bank is not invertible as it is not '
-                             'a frame (lower frame bound A=0).')
-
-        def kernel(g, i, x):
-            y = g.evaluate(x).T
-            z = torch.pinverse(y.view(-1, 1)).view(-1)
-            return z[:, i]  # Return one filter.
-
-        return Filter(self.G, kernel)
-
-    def plot(self, eigenvalues=None, sum=None, title=None,
-             ax=None, **kwargs):
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots()
-        x = torch.linspace(torch.min(self.G.e), self.G.lmax, self.chebyshev_order).detach()
-        y = self.evaluate(x).T.detach()
-        x = x.cpu()
-        y = y.cpu()
-        lines = ax.plot(x, y)
-
-        if len(y.shape) == 2:
-            for i in range(y.shape[1]):
-                ax.plot(x, y[:, i], '.')
-        else:
-            ax.plot(x, y, '.')
-        if sum:
-            ax.plot(x, np.sum(y ** 2, 1), '.')
-
-        # TODO: plot highlighted eigenvalues
-        if sum:
-            line_sum, = ax.plot(x, np.sum(y ** 2, 1), 'k', **kwargs)
-
-        ax.set_xlabel(r"$\lambda$: laplacian's eigenvalues / graph frequencies")
-        ax.set_ylabel(r'$\hat{g}(\lambda)$: filter response')
-        plt.show()
