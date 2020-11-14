@@ -57,7 +57,7 @@ def decimation(args):
         def __init__(self, dataset):
             super(Net, self).__init__()
             data = dataset[0]
-            if args.cuda:
+            if args['cuda']:
                 data.to('cuda')
             self.G = Graph(data)
 
@@ -81,7 +81,7 @@ def decimation(args):
                                                       out_channels=1, alpha=args['alpha'], pre_training=False,
                                                       chebyshev_order=args['chebyshev_order'])
 
-            if args.cuda:
+            if args['cuda']:
                 self.to('cuda')
 
         def reset_parameters(self):
@@ -91,7 +91,7 @@ def decimation(args):
             #     if hasattr(layer, 'reset_parameters'):
             #         layer.reset_parameters()
             self.synthesis.reset_parameters()
-            if args.cuda:
+            if args['cuda']:
                 self.to('cuda')
 
         def forward(self, data):
