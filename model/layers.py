@@ -69,7 +69,7 @@ class GraphSpectralFilterLayer(nn.Module):
         #     nn.Linear(512, out_features, bias=False),
         # )
         self.chebyshev_order = chebyshev_order
-        # self.leakyrelu = nn.LeakyReLU(self.alpha)
+        self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.N = G.n_vertices
         self.filter_type = filter
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
@@ -114,26 +114,21 @@ class GraphSpectralFilterLayer(nn.Module):
         N = h.shape[0]
         assert not torch.isnan(h).any()
 
-        coefficients_list = self.filter()
-        h_primes = []
+        coefficients = self.filter()
         attentions = []
 
-        for coefficients in coefficients_list:
-            overall_mean = coefficients.mean()
-            attention = torch.where(coefficients > overall_mean, coefficients, torch.FloatTensor([-9e9]))
-            attention = torch.exp(attention).clamp(max=9e15)
-            attention = attention.softmax(0)
-            attention = F.dropout(attention, self.dropout, training=self.training)
-
-            h_prime = attention.mm(h)
-            assert not torch.isnan(h_prime).any()
-            h_primes.append(F.elu(h_prime))
-            # attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))
+        overall_mean = coefficients.mean()
+        attention = torch.where(coefficients > overall_mean, coefficients, torch.FloatTensor([-9e12]))
+        attention = self.leakyrelu(attention)
+        attention = attention.softmax(0)
+        attention = F.dropout(attention, self.dropout, training=self.training)
+        h_prime = attention.mm(h)
+        assert not torch.isnan(h_prime).any()
 
         if self.concat:
-            return torch.cat(h_primes, dim=1), attentions
+            return h_prime.view(self.out_channels, N, self.out_features).permute(1, 0, 2).reshape(N, -1), attentions
         else:
-            return torch.stack(h_primes, dim=2).mean(dim=2), attentions
+            return h_prime.view(self.out_channels, N, self.out_features).mean(dim=0), attentions
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'

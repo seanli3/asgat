@@ -90,7 +90,7 @@ class Net(torch.nn.Module):
         x = self.analysis(x)[0]
         x = F.dropout(x, p=args.dropout, training=self.training)
         x = self.synthesis(x)[0]
-        x = F.elu(x)
+        x = F.elu_(x)
         # x = F.elu(x.mm(self.W))
         # x = F.elu(self.mlp(x))
         return F.log_softmax(x, dim=1), None, None

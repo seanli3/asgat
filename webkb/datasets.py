@@ -58,8 +58,8 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
     if self_loop:
         dataset.data.edge_index = add_self_loops(dataset.data.edge_index)[0]
 
-    # if not is_undirected(dataset.data.edge_index):
-    #     dataset.data.edge_index = to_undirected(dataset.data.edge_index)
+    if not is_undirected(dataset.data.edge_index):
+        dataset.data.edge_index = to_undirected(dataset.data.edge_index)
 
     # from torch.nn.functional import one_hot
     # if dataset[0].x is None:

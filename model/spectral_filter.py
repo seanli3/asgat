@@ -73,21 +73,22 @@ class Filter(nn.Module):
         a2 = float(a_arange[1] + a_arange[0]) / 2.
 
         twf_old = torch.eye(G.n_vertices)
-        L = torch.zeros(G.n_vertices, G.n_vertices).index_put((G.edge_index[0], G.edge_index[1]), G.edge_weight)
+        L = torch.zeros(G.n_vertices, G.n_vertices).index_put_((G.edge_index[0], G.edge_index[1]), G.edge_weight)
         twf_cur = (L - a2*torch.eye(G.n_vertices)) / a1
 
         nf = c.shape[1]
-        r = []
+        r = torch.empty(nf*G.n_vertices, G.n_vertices)
 
+        tmpN = np.arange(G.n_vertices, dtype=int)
         for i in range(nf):
-            r.append(twf_old * 0.5 * c[0][i] + twf_cur * c[1][i])
+            r[tmpN + G.n_vertices*i, :] = twf_old * 0.5 * c[0][i] + twf_cur * c[1][i]
 
         factor = (2 / a1) * (L - a2*torch.eye(G.n_vertices))
 
         for k in range(2, M):
             twf_new = factor.mm(twf_cur) - twf_old
             for i in range(nf):
-                r[i] = twf_new*c[k,i] + r[i]
+                r[tmpN + G.n_vertices * i, :] += twf_new*c[k,i]
 
             twf_old = twf_cur
             twf_cur = twf_new
