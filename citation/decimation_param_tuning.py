@@ -51,13 +51,14 @@ def decimation(args):
 
     if args['cuda']:
         torch.cuda.manual_seed(args['seed'])
-        torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 
     class Net(torch.nn.Module):
         def __init__(self, dataset):
             super(Net, self).__init__()
             data = dataset[0]
+            if args.cuda:
+                data.to('cuda')
             self.G = Graph(data)
 
             self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args['hidden'],
@@ -80,6 +81,9 @@ def decimation(args):
                                                       out_channels=1, alpha=args['alpha'], pre_training=False,
                                                       chebyshev_order=args['chebyshev_order'])
 
+            if args.cuda:
+                self.to('cuda')
+
         def reset_parameters(self):
             self.analysis.reset_parameters()
             # torch.nn.init.xavier_uniform_(self.W.data, gain=1.414)
@@ -87,6 +91,8 @@ def decimation(args):
             #     if hasattr(layer, 'reset_parameters'):
             #         layer.reset_parameters()
             self.synthesis.reset_parameters()
+            if args.cuda:
+                self.to('cuda')
 
         def forward(self, data):
             x = data.x
