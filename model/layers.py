@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from .spectral_filter import Filter
 import pygsp
 from math import sqrt
-import numpy as np
 
 
 class GaussFilter(nn.Module):
@@ -26,6 +25,7 @@ class GaussFilter(nn.Module):
 class AnalysisFilter(nn.Module):
     def __init__(self, out_channel, device):
         super(AnalysisFilter, self).__init__()
+        self.device=device
         self.out_channel = out_channel
         self.layers = nn.Sequential(nn.Linear(1, 32),
                                     nn.ReLU(inplace=True),
@@ -41,7 +41,7 @@ class AnalysisFilter(nn.Module):
         for layer in self.layers:
             if hasattr(layer, 'reset_parameters'):
                 layer.reset_parameters()
-        self.to(device)
+        self.to(self.device)
 
     def forward(self, x):
         return self.layers(x.view(-1,1))
@@ -126,9 +126,9 @@ class GraphSpectralFilterLayer(nn.Module):
         coefficients = self.filter()
         attentions = []
 
-        overall_mean = coefficients.mean()
-        attention = torch.where(coefficients > overall_mean, coefficients, torch.tensor([-9e12], device=self.device))
-        attention = self.leakyrelu(attention)
+        # overall_mean = coefficients.mean()
+        attention = self.leakyrelu(coefficients)
+        attention = torch.where(attention > 0, attention, torch.tensor([-9e15], device=self.device))
         attention = attention.softmax(0)
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = attention.mm(h)
