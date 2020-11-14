@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .spectral_filter import Filter
-from torch_sparse import spmm
 import pygsp
 from math import sqrt
 import numpy as np
@@ -120,36 +119,13 @@ class GraphSpectralFilterLayer(nn.Module):
         attentions = []
 
         for coefficients in coefficients_list:
-            # overall_mean = torch.sparse.sum(coefficients) / N / N
-            attention_indices = coefficients._indices()
-            attention_values = coefficients._values()
-            # attention_values = self.leakyrelu(attention_values)
-            overall_mean = attention_values.mean()
-            # attention_values = torch.where(torch.isnan(attention_values).logical_or(attention_values.lt(overall_mean)), torch.full_like(attention_values, -9e15), attention_values)
-            non_zero_att_idx = (attention_values > overall_mean).nonzero().view(-1)
-            attention_values = attention_values[non_zero_att_idx]
-            attention_indices = attention_indices.index_select(1, non_zero_att_idx)
-            attention_values = torch.exp(attention_values).clamp(max=9e15)
-            divisor = spmm(attention_indices,
-                           attention_values,
-                           self.N,
-                           self.N,
-                           torch.ones(self.N, 1))
-            # Avoid dividing by zero
-            divisor = divisor.masked_fill(divisor == 0, 1)
+            overall_mean = coefficients.mean()
+            attention = torch.where(coefficients > overall_mean, coefficients, torch.FloatTensor([-9e9]))
+            attention = torch.exp(attention).clamp(max=9e15)
+            attention = attention.softmax(0)
+            attention = F.dropout(attention, self.dropout, training=self.training)
 
-            # dropout
-            if self.training:
-                kprob = 1 - self.dropout
-                mask = ((torch.rand(attention_values.size()) + kprob).floor()).type(torch.bool)
-                attention_indices = attention_indices[:, mask]
-                attention_values = attention_values[mask]
-
-            h_prime = spmm(attention_indices,
-                           attention_values,
-                           self.N,
-                           self.N,
-                           h).div(divisor)
+            h_prime = attention.mm(h)
             assert not torch.isnan(h_prime).any()
             h_primes.append(F.elu(h_prime))
             # attentions.append(torch.sparse_coo_tensor(attention_indices, attention_values, (N, N)).to_dense().div(divisor))

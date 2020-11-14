@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
-from scipy.sparse.linalg import eigsh, ArpackNoConvergence
-from scipy.sparse import coo_matrix
 import numpy as np
 import torch.nn as nn
-from torch_sparse import spspmm
 from torch_geometric.utils import remove_self_loops, add_self_loops
 from torch_geometric.utils import get_laplacian
 
@@ -76,26 +73,21 @@ class Filter(nn.Module):
         a2 = float(a_arange[1] + a_arange[0]) / 2.
 
         twf_old = torch.eye(G.n_vertices)
-        twf_cur = torch.zeros(G.n_vertices, G.n_vertices).index_put((G.edge_index[0], G.edge_index[1]), G.edge_weight)
-        twf_cur = (twf_cur - a2*torch.eye(G.n_vertices)) / a1
+        L = torch.zeros(G.n_vertices, G.n_vertices).index_put((G.edge_index[0], G.edge_index[1]), G.edge_weight)
+        twf_cur = (L - a2*torch.eye(G.n_vertices)) / a1
 
         nf = c.shape[1]
         r = []
 
         for i in range(nf):
-            r.append(twf_old.to_sparse() * 0.5 * c[0][i] + twf_cur.to_sparse() * c[1][i])
+            r.append(twf_old * 0.5 * c[0][i] + twf_cur * c[1][i])
 
-        factor = (2 / a1) * (
-                torch.sparse_coo_tensor(G.edge_index, G.edge_weight, (G.n_vertices, G.n_vertices)) -
-                torch.sparse_coo_tensor(
-                    [range(G.n_vertices), range(G.n_vertices)], torch.ones(G.n_vertices)*a2, [G.n_vertices, G.n_vertices]
-                )
-        )
+        factor = (2 / a1) * (L - a2*torch.eye(G.n_vertices))
 
         for k in range(2, M):
             twf_new = factor.mm(twf_cur) - twf_old
             for i in range(nf):
-                r[i] = twf_new.to_sparse()*c[k,i] + r[i]
+                r[i] = twf_new*c[k,i] + r[i]
 
             twf_old = twf_cur
             twf_cur = twf_new
