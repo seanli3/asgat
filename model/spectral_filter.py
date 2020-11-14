@@ -55,10 +55,8 @@ class Graph(object):
             self.n_vertices
         )
         self.L = (torch.sparse_coo_tensor(diagonal_indices, torch.ones(self.n_vertices),
-                                         [self.n_vertices, self.n_vertices]) \
-                 - torch.sparse_coo_tensor(indexDmAmD, valueDmAmD, [self.n_vertices, self.n_vertices])).to_dense()
-
-        self.L.to(self.data.x.device)
+                                         [self.n_vertices, self.n_vertices], device=self.data.x.device) \
+                 - torch.sparse_coo_tensor(indexDmAmD, valueDmAmD, [self.n_vertices, self.n_vertices], device=self.data.x.device)).to_dense()
 
     @property
     def dw(self):
@@ -82,7 +80,7 @@ class Graph(object):
             try:
                 # We need to cast the matrix L to a supported type.
                 # TODO: not good for memory. Cast earlier?
-                L = self.L.to('cpu').to_sparse()
+                L = self.L.cpu().to_sparse()
                 L_coo = coo_matrix((L.values().numpy(), L.indices().numpy()))
                 lmax = sparse.linalg.eigsh(L_coo.asfptype(), k=1, tol=5e-3,
                              ncv=min(self.n_vertices, 10),
@@ -103,9 +101,11 @@ class Graph(object):
 
 
 class Filter(nn.Module):
-    def __init__(self, G, kernel, chebyshev_order=32):
+    def __init__(self, G, kernel, nf, device, chebyshev_order=32):
         super(Filter, self).__init__()
         self.G = G
+        self.device = device
+        self.nf = nf
 
         self._kernel = kernel
         self.chebyshev_order = chebyshev_order
@@ -122,14 +122,14 @@ class Filter(nn.Module):
 
         a1 = (a_arange[1] - a_arange[0]) / 2
         a2 = (a_arange[1] + a_arange[0]) / 2
-        c = []
+        c = torch.empty(m+1, self.nf, device=self.device)
 
-        tmpN = torch.arange(N)
+        tmpN = torch.arange(N, device=self.device)
         num = torch.cos(np.pi * (tmpN + 0.5) / N)
         for o in range(m + 1):
-            c.append(2. / N * torch.cos(np.pi * o * (tmpN + 0.5) / N).view(1, -1).mm(self._kernel(a1 * num + a2)))
+            c[o, :] = 2. / N * torch.cos(np.pi * o * (tmpN + 0.5) / N).view(1, -1).mm(self._kernel(a1 * num + a2))
 
-        return torch.cat(c)
+        return c
 
     def cheby_op(self, c: torch.Tensor) -> torch.Tensor:
         G = self.G
@@ -145,17 +145,17 @@ class Filter(nn.Module):
         a1 = float(a_arange[1] - a_arange[0]) / 2.
         a2 = float(a_arange[1] + a_arange[0]) / 2.
 
-        twf_old = torch.eye(G.n_vertices)
-        twf_cur = (G.L - a2*torch.eye(G.n_vertices)) / a1
+        twf_old = torch.eye(G.n_vertices, device=self.device)
+        twf_cur = (G.L - a2*torch.eye(G.n_vertices, device=self.device)) / a1
 
         nf = c.shape[1]
-        r = torch.empty(nf*G.n_vertices, G.n_vertices)
+        r = torch.empty(nf*G.n_vertices, G.n_vertices, device=self.device)
 
-        tmpN = np.arange(G.n_vertices, dtype=int)
+        tmpN = torch.arange(G.n_vertices, dtype=int, device=self.device)
         for i in range(nf):
             r[tmpN + G.n_vertices*i, :] = twf_old * 0.5 * c[0][i] + twf_cur * c[1][i]
 
-        factor = (2 / a1) * (G.L - a2*torch.eye(G.n_vertices))
+        factor = (2 / a1) * (G.L - a2*torch.eye(G.n_vertices, device=self.device))
 
         for k in range(2, M):
             twf_new = factor.mm(twf_cur) - twf_old

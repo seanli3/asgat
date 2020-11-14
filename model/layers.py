@@ -24,7 +24,7 @@ class GaussFilter(nn.Module):
 
 
 class AnalysisFilter(nn.Module):
-    def __init__(self, out_channel):
+    def __init__(self, out_channel, device):
         super(AnalysisFilter, self).__init__()
         self.out_channel = out_channel
         self.layers = nn.Sequential(nn.Linear(1, 32),
@@ -35,11 +35,13 @@ class AnalysisFilter(nn.Module):
                                     nn.ReLU(inplace=True),
                                     nn.Linear(32, out_channel),
                                     nn.ReLU(inplace=True))
+        self.to(device)
 
     def reset_parameters(self):
         for layer in self.layers:
             if hasattr(layer, 'reset_parameters'):
                 layer.reset_parameters()
+        self.to(device)
 
     def forward(self, x):
         return self.layers(x.view(-1,1))
@@ -72,9 +74,13 @@ class GraphSpectralFilterLayer(nn.Module):
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.N = G.n_vertices
         self.filter_type = filter
-        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.G, self.filter_kernel, chebyshev_order=self.chebyshev_order)
+        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
+        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, chebyshev_order=self.chebyshev_order)
         self.concat = concat
+
+        self.to(self.device)
+        self.linear.to(self.device)
+        self.filter_kernel.to(self.device)
 
     def reset_parameters(self):
         # nn.init.xavier_uniform_(self.W.data, gain=1.414)
@@ -82,8 +88,8 @@ class GraphSpectralFilterLayer(nn.Module):
         # for layer in self.mlp:
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
-        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.G, self.filter_kernel, chebyshev_order=self.chebyshev_order)
+        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
+        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, chebyshev_order=self.chebyshev_order)
 
         if self.pre_training:
             itersine = pygsp.filters.Itersine(self.G, self.out_channels)
@@ -107,6 +113,9 @@ class GraphSpectralFilterLayer(nn.Module):
                     self.filter_kernel.train()
                 loss.backward()
                 k_optimizer.step()
+        self.to(self.device)
+        self.linear.to(self.device)
+        self.filter_kernel.to(self.device)
 
     def forward(self, input):
         # h = torch.mm(input, self.W)
@@ -118,7 +127,7 @@ class GraphSpectralFilterLayer(nn.Module):
         attentions = []
 
         overall_mean = coefficients.mean()
-        attention = torch.where(coefficients > overall_mean, coefficients, torch.tensor([-9e12]))
+        attention = torch.where(coefficients > overall_mean, coefficients, torch.tensor([-9e12], device=self.device))
         attention = self.leakyrelu(attention)
         attention = attention.softmax(0)
         attention = F.dropout(attention, self.dropout, training=self.training)
