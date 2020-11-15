@@ -53,9 +53,10 @@ class GraphSpectralFilterLayer(nn.Module):
     """
 
     def __init__(self, G, in_features, out_features, dropout, alpha, out_channels, device="cpu", concat=True,
-                 chebyshev_order=16, pre_training=False, filter="analysis"):
+                 chebyshev_order=16, pre_training=False, filter="analysis", k=5):
         super(GraphSpectralFilterLayer, self).__init__()
         self.G = G
+        self.k = k
         self.device=device
         self.dropout = dropout
         self.in_features = in_features
@@ -123,11 +124,11 @@ class GraphSpectralFilterLayer(nn.Module):
         N = h.shape[0]
         assert not torch.isnan(h).any()
 
-        attention = self.filter()
         attentions = []
-
-        mean = attention.mean(dim=1, keepdim=True)
-        attention = torch.where(attention > mean, attention, torch.tensor([-9e15], device=self.device))
+        attention = self.filter()
+        ret = torch.topk(attention, k=self.k, dim=1)
+        attention.fill_(-9e15)
+        attention.scatter_(1, ret.indices, ret.values)
         attention = self.leakyrelu(attention)
         attention = attention.softmax(1)
         attention = F.dropout(attention, self.dropout, training=self.training)
