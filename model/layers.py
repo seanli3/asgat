@@ -123,12 +123,12 @@ class GraphSpectralFilterLayer(nn.Module):
         N = h.shape[0]
         assert not torch.isnan(h).any()
 
-        coefficients = self.filter()
+        attention = self.filter()
         attentions = []
 
-        # overall_mean = coefficients.mean()
-        attention = self.leakyrelu(coefficients)
-        attention = torch.where(attention > 0, attention, torch.tensor([-9e15], device=self.device))
+        overall_mean = attention.mean()
+        attention = torch.where(attention > overall_mean, attention, torch.tensor([-9e15], device=self.device))
+        attention = self.leakyrelu(attention)
         attention = attention.softmax(0)
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = attention.mm(h)
