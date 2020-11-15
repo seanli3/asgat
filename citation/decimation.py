@@ -63,7 +63,7 @@ class Net(torch.nn.Module):
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
                                                  alpha=args.alpha, chebyshev_order=args.chebyshev_order, concat=True,
-                                                 k=args['k'])
+                                                 k=args.k)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
         #                             nn.Linear(128, 64),

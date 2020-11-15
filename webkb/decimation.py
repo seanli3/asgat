@@ -73,7 +73,7 @@ class Net(torch.nn.Module):
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
                                                  alpha=args.alpha, chebyshev_order=args.chebyshev_order, concat=True,
-                                                 k=args['k'])
+                                                 k=args.k)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
         #                             nn.Linear(128, 64),
@@ -110,7 +110,7 @@ class Net(torch.nn.Module):
         x = self.analysis(x)[0]
         x = F.dropout(x, p=args.dropout, training=self.training)
         x = self.synthesis(x)[0]
-        x = F.elu(x)
+        x = F.elu_(x)
         # x = F.elu(x.mm(self.W))
         # x = F.elu(self.mlp(x))
         return F.log_softmax(x, dim=1), None, None
