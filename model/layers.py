@@ -126,8 +126,8 @@ class GraphSpectralFilterLayer(nn.Module):
         attention = self.filter()
         attentions = []
 
-        overall_mean = attention.mean()
-        attention = torch.where(attention > overall_mean, attention, torch.tensor([-9e15], device=self.device))
+        mean = attention.mean(dim=1, keepdim=True)
+        attention = torch.where(attention > mean, attention, torch.tensor([-9e15], device=self.device))
         attention = self.leakyrelu(attention)
         attention = attention.softmax(1)
         attention = F.dropout(attention, self.dropout, training=self.training)
