@@ -36,6 +36,7 @@ parser.add_argument('--dropout', type=float, default=0.6174883141474811)
 parser.add_argument('--normalize_features', type=str2bool, default=True)
 parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--pre_training', action='store_true')
+parser.add_argument('--self_loop', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--chebyshev_order', type=int, default=15, help='Chebyshev polynomial order')
 parser.add_argument('--edge_dropout', type=float, default=0)
@@ -120,7 +121,7 @@ permute_masks = None
 
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks, cuda=args.cuda, lcc=args.lcc,
+                                    permute_masks=permute_masks, cuda=args.cuda, lcc=args.lcc, self_loop=args.self_loop,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)

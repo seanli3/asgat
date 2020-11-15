@@ -104,14 +104,14 @@ class GraphSpectralFilterLayer(nn.Module):
                 k_optimizer.zero_grad()
                 predictions = self.filter_kernel(x)
                 loss = F.mse_loss(input=predictions, target=y, reduction="mean")
-                if _ % 1000 == 0:
-                    self.filter_kernel.eval()
-                    val_predictions = self.filter_kernel(val_x)
-                    val_loss = F.mse_loss(input=val_predictions, target=val_y, reduction="mean")
-                    print(
-                        'kernel training epoch {} loss {} validation loss {}'.format(_, str(loss.item()),
-                                                                                     str(val_loss.item())))
-                    self.filter_kernel.train()
+                # if _ % 1000 == 0:
+                #     self.filter_kernel.eval()
+                #     val_predictions = self.filter_kernel(val_x)
+                #     val_loss = F.mse_loss(input=val_predictions, target=val_y, reduction="mean")
+                #     print(
+                #         'kernel training epoch {} loss {} validation loss {}'.format(_, str(loss.item()),
+                #                                                                      str(val_loss.item())))
+                #     self.filter_kernel.train()
                 loss.backward()
                 k_optimizer.step()
         self.to(self.device)
