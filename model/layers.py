@@ -95,9 +95,9 @@ class GraphSpectralFilterLayer(nn.Module):
             itersine = pygsp.filters.Itersine(self.G, self.out_channels)
             k_optimizer = torch.optim.Adam(self.filter_kernel.parameters(), lr=5e-4, weight_decay=1e-5)
             x = torch.rand(1000, device=self.device).view(-1, 1) * 2
-            y = torch.FloatTensor(itersine.evaluate(x.cpu().view(-1)), device=self.device).T
+            y = torch.FloatTensor(itersine.evaluate(x.cpu().view(-1)).to(self.device), device=self.device).T
             val_x = torch.rand(1000, device=self.device).view(-1, 1) * 2
-            val_y = torch.FloatTensor(itersine.evaluate(val_x.cpu().view(-1)), device=self.device).T
+            val_y = torch.FloatTensor(itersine.evaluate(val_x.cpu().view(-1)).to(self.device), device=self.device).T
             for _ in range(10000):
                 self.filter_kernel.train()
                 k_optimizer.zero_grad()
