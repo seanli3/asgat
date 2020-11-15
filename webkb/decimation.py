@@ -90,7 +90,7 @@ class Net(torch.nn.Module):
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
                                                   out_channels=args.output_heads, alpha=args.alpha, pre_training=False,
                                                   chebyshev_order=args.chebyshev_order, concat=False,
-                                                  k=args['k'])
+                                                  k=args.k)
 
         if args.cuda:
             self.to('cuda')
