@@ -129,7 +129,7 @@ class GraphSpectralFilterLayer(nn.Module):
         overall_mean = attention.mean()
         attention = torch.where(attention > overall_mean, attention, torch.tensor([-9e15], device=self.device))
         attention = self.leakyrelu(attention)
-        attention = attention.softmax(0)
+        attention = attention.softmax(1)
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = attention.mm(h)
         assert not torch.isnan(h_prime).any()
