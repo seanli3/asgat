@@ -46,12 +46,17 @@ class Net(torch.nn.Module):
         self.conv2 = ChebConv(args.hidden, dataset.num_classes, args.num_hops)
         if args.cuda:
             data.to('cuda')
+            self.to('cuda')
             self.conv1.to('cuda')
             self.conv2.to('cuda')
 
     def reset_parameters(self):
         self.conv1.reset_parameters()
         self.conv2.reset_parameters()
+        if args.cuda:
+            self.to('cuda')
+            self.conv1.to('cuda')
+            self.conv2.to('cuda')
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
