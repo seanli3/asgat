@@ -24,17 +24,30 @@ parser.add_argument('--num_hops', type=int, default=3)
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
+parser.add_argument('--cuda', action='store_true')
 args = parser.parse_args()
+
+
 
 rseed(args.seed)
 nseed(args.seed)
 torch.manual_seed(args.seed)
 
+args.cuda = args.cuda and torch.cuda.is_available()
+if args.cuda:
+    print("-----------------------Training on CUDA-------------------------")
+    torch.cuda.manual_seed(args.seed)
+
 class Net(torch.nn.Module):
     def __init__(self, dataset):
         super(Net, self).__init__()
+        data = dataset[0]
         self.conv1 = ChebConv(dataset.num_features, args.hidden, args.num_hops)
         self.conv2 = ChebConv(args.hidden, dataset.num_classes, args.num_hops)
+        if args.cuda:
+            data.to('cuda')
+            self.conv1.to('cuda')
+            self.conv2.to('cuda')
 
     def reset_parameters(self):
         self.conv1.reset_parameters()
