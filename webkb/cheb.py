@@ -42,10 +42,6 @@ if args.cuda:
 class Net(torch.nn.Module):
     def __init__(self, dataset):
         super(Net, self).__init__()
-        if args.cuda:
-            data = dataset[0]
-            dataset.data.to('cuda')
-            data.to('cuda')
         self.conv1 = ChebConv(dataset.num_features, args.hidden, args.num_hops)
         self.conv2 = ChebConv(args.hidden, dataset.num_classes, args.num_hops)
         if args.cuda:
