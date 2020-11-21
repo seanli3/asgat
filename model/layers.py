@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .spectral_filter import Filter
+from torch_sparse import spmm
 import pygsp
 from math import sqrt
 
@@ -72,7 +73,6 @@ class GraphSpectralFilterLayer(nn.Module):
         #     nn.Linear(512, out_features, bias=False),
         # )
         self.chebyshev_order = chebyshev_order
-        self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.N = G.n_vertices
         self.filter_type = filter
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
@@ -119,26 +119,22 @@ class GraphSpectralFilterLayer(nn.Module):
         self.filter_kernel.to(self.device)
 
     def forward(self, input):
-        # h = torch.mm(input, self.W)
         h = self.linear(input)
-        N = h.shape[0]
         assert not torch.isnan(h).any()
 
-        attentions = []
         attention = self.filter()
         ret = torch.topk(attention, k=self.k, dim=1)
         attention.fill_(-9e15)
         attention.scatter_(1, ret.indices, ret.values)
-        attention = self.leakyrelu(attention)
         attention = attention.softmax(1)
         attention = F.dropout(attention, self.dropout, training=self.training)
-        h_prime = attention.mm(h)
-        assert not torch.isnan(h_prime).any()
+        nzidx = attention.nonzero(as_tuple=True)
+        h_prime = spmm(nzidx, attention[nzidx], self.N*self.out_channels, self.N, h)
 
         if self.concat:
-            return h_prime.view(self.out_channels, N, self.out_features).permute(1, 0, 2).reshape(N, -1), attentions
+            return h_prime.view(self.out_channels, self.N, self.out_features).permute(1, 0, 2).reshape(self.N, -1), attention
         else:
-            return h_prime.view(self.out_channels, N, self.out_features).mean(dim=0), attentions
+            return h_prime.view(self.out_channels, self.N, self.out_features).mean(dim=0), attention
 
     def __repr__(self):
         return self.__class__.__name__ + ' (' + str(self.in_features) + ' -> ' + str(self.out_features) + ')'
