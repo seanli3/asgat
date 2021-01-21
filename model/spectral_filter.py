@@ -190,10 +190,10 @@ class Filter(nn.Module):
 
         # initialization
         hiv = torch.arange(0, order * M, order, device=self.device)
-        V = torch.empty((Z, N, M * order), device=self.device).fill_(1e-12)
+        V = torch.zeros((Z, N, M * order), device=self.device)
         V[:, :, hiv] = q
 
-        H = torch.empty((Z, order + 1, M * order), device=self.device).fill_(1e-12)
+        H = torch.zeros((Z, order + 1, M * order), device=self.device)
         r = torch.matmul(A, q)
         H[:, 0, hiv] = torch.sum(q * r, axis=1)
         # r -= (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) * q
@@ -201,7 +201,7 @@ class Filter(nn.Module):
         r -= q
         H[:, 1, hiv] = torch.linalg.norm(r, axis=1)
 
-        orth = torch.empty(Z, order, device=self.device).fill_(1e-12)
+        orth = torch.zeros(Z, order, device=self.device)
         orth[:, 0] = torch.linalg.norm(torch.matmul(V.permute(0, 2, 1), V) - M, axis=(1, 2))
 
         for k in range(1, order):
@@ -214,28 +214,95 @@ class Filter(nn.Module):
             H[:, k - 1, hiv + k] = H[:, k, hiv + k - 1]
             v = q
             q = r / (H[:, k - 1, k + hiv]).repeat(1, 1, N).view(N, N, 1)
-            q.clamp_(min=-9e15, max=9e15)
 
             V[:, :, k + hiv] = q
 
             r = torch.matmul(A, q)
             r -= H[:, k - 1, k + hiv].repeat(1, 1, N).view(N, N, 1) * v
             H[:, k, k + hiv] = torch.sum(torch.multiply(q, r), axis=1)
-            H.clamp_(min=-9e15, max=9e15)
             r -= H[:, k, k + hiv].repeat(1, 1, N).view(N, N, 1) * q
 
             # The next line has to be checked
             r -= torch.matmul(V, torch.matmul(V.permute(0, 2, 1), r))  # full reorthogonalization
-            r.clamp_(min=-9e15, max=9e15)
-            H[:, k + 1, k + hiv] = torch.linalg.norm(r, axis=0)
+            H[:, k + 1, k + hiv] = torch.linalg.norm(r, axis=1)
             temp = torch.matmul(V.permute(0, 2, 1), V) - M
-            temp.clamp_(min=-9e15, max=9e15)
-
             orth[:, k] = torch.linalg.norm(temp, axis=(1, 2))
 
         H = H[:, :order, :order]
 
         return V, H, orth
+
+    # deprecated
+    def lanczos_seq(self, A, order, x):
+        N, M = x.shape
+
+        # normalization
+        # q = torch.divide(x, kron(torch.ones((1, N)), torch.linalg.norm(x, axis=0)))
+        # q = x when x is kronecker
+        q = x
+
+        # initialization
+        hiv = torch.arange(0, order * M, order, device=self.device)
+        V = torch.zeros((N, M * order), device=self.device)
+        V[:, hiv] = q
+
+        H = torch.zeros((order + 1, M * order), device=self.device)
+        r = torch.matmul(A, q)
+        H[0, hiv] = torch.sum(q * r, axis=0)
+        # r -= (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) * q
+        # (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) will always be all ones
+        r -= q
+        H[1, hiv] = torch.linalg.norm(r, axis=0)
+
+        orth = torch.zeros(order, device=self.device)
+        orth[0] = torch.linalg.norm(torch.matmul(V.T, V) - M)
+
+        for k in range(1, order):
+            if H.isnan().any() or H.isinf().any():
+                H = H[:k, :k]
+                V = V[:, :k]
+                orth = orth[:k]
+                return V, H, orth
+
+            H[k - 1, hiv + k] = H[k, hiv + k - 1]
+            v = q
+            q = r / (H[k - 1, k + hiv]).repeat(N, 1)
+            V[:, k + hiv] = q
+
+            r = torch.matmul(A, q)
+            r -= H[k - 1, k + hiv].repeat(N, 1) * v
+            H[k, k + hiv] = torch.sum(torch.multiply(q, r), axis=0)
+            r -= H[k, k + hiv].repeat(N, 1) * q
+
+            # The next line has to be checked
+            r -= torch.matmul(V, torch.matmul(V.T, r))  # full reorthogonalization
+            H[k + 1, k + hiv] = torch.linalg.norm(r, axis=0)
+            temp = torch.matmul(V.T, V) - M
+            orth[k] = torch.linalg.norm(temp)
+
+        H = H[:order, :order]
+
+        return V, H, orth
+
+    # deprecated
+    def lanczos_op_seq(self, order=16):
+        signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
+        tmpN = torch.arange(self.G.n_vertices)
+        nf = self._kernel.out_channel
+        c = torch.zeros((self.G.n_vertices*nf, self.G.n_vertices))
+        for j in range(signal.shape[0]):
+            V, H, _ = self.lanczos_seq(
+                self.G.L,
+                order,
+                signal[j]
+            )
+            Eh, Uh = torch.symeig(H, eigenvectors=True)
+            Eh[Eh < 0] = 0
+            V = torch.matmul(V, Uh)
+            fe = self._kernel(Eh)
+            for i in range(nf):
+                c[tmpN + i*self.G.n_vertices, j] = V.matmul(fe[:,i].view(-1, 1) * V.T.matmul(signal[j])).view(-1)
+        return c
 
     def forward(self) -> object:
         """
