@@ -258,7 +258,6 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
 
     if cuda:
         dataset.data.to('cuda')
-        for d in dataset.__data_list__:
-            d.to('cuda')
+        del dataset.__data_list__
 
     return dataset
