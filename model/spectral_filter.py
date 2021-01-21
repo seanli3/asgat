@@ -189,11 +189,11 @@ class Filter(nn.Module):
         q = x
 
         # initialization
-        hiv = torch.arange(0, order * M, order)
-        V = torch.empty((Z, N, M * order)).fill_(1e-12)
+        hiv = torch.arange(0, order * M, order, device=self.device)
+        V = torch.empty((Z, N, M * order), device=self.device).fill_(1e-12)
         V[:, :, hiv] = q
 
-        H = torch.empty((Z, order + 1, M * order)).fill_(1e-12)
+        H = torch.empty((Z, order + 1, M * order), device=self.device).fill_(1e-12)
         r = torch.matmul(A, q)
         H[:, 0, hiv] = torch.sum(q * r, axis=1)
         # r -= (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) * q
@@ -201,7 +201,7 @@ class Filter(nn.Module):
         r -= q
         H[:, 1, hiv] = torch.linalg.norm(r, axis=1)
 
-        orth = torch.empty(Z, order).fill_(1e-12)
+        orth = torch.empty(Z, order, device=self.device).fill_(1e-12)
         orth[:, 0] = torch.linalg.norm(torch.matmul(V.permute(0, 2, 1), V) - M, axis=(1, 2))
 
         for k in range(1, order):
