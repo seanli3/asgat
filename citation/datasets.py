@@ -1,7 +1,7 @@
 import os.path as osp
 from torch_geometric.datasets import Planetoid, PPI, Amazon, Reddit, Coauthor, Flickr, Yelp
 import torch_geometric.transforms as T
-from torch_geometric.utils import add_self_loops, dropout_adj
+from torch_geometric.utils import add_self_loops, dropout_adj, get_laplacian
 from random import sample
 from torch.nn import functional as F
 from torch_geometric.utils import to_networkx
@@ -60,6 +60,8 @@ def random_planetoid_splits(data, num_classes, dissimilar_mask=None, lcc_mask=No
             index = (data.y == i).nonzero().view(-1)
         elif dissimilar_mask is not None and lcc_mask is None:
             index = (data.y == i).logical_and(dissimilar_mask).nonzero().view(-1)
+        elif dissimilar_mask is None and lcc_mask is not None:
+            index = (data.y == i).logical_and(lcc_mask).nonzero().view(-1)
         else:
             index = (data.y == i).logical_and(dissimilar_mask).logical_and(lcc_mask).nonzero().view(-1)
         index = index[torch.randperm(index.size(0))]
@@ -111,7 +113,8 @@ def random_coauthor_amazon_splits(data, num_classes, lcc_mask):
 
 
 def get_dataset(name, normalize_features=False, transform=None, edge_dropout=None, node_feature_dropout=None,
-                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full", self_loop=True):
+                dissimilar_t = 1, cuda=False, permute_masks=None, lcc=False, split="full", self_loop=True,
+                dummy_nodes=0, removal_nodes=0):
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', name)
     if name in ['Computers', 'Photo']:
         dataset = Amazon(path, name)
@@ -130,6 +133,65 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         dataset = Nell(path, 'Nell', name)
     elif name.lower() == 'iris':
         dataset = Iris()
+
+    # # Removing high-degree nodes
+    # print('remove nodes:', removal_nodes)
+    # for _ in range(removal_nodes):
+    #     adj = torch.sparse_coo_tensor(dataset[0].edge_index, torch.ones(dataset[0].edge_index.shape[1])).to_dense()
+    #     max_degree_node = adj.sum(dim=0).argmax().item()
+    #     new_indices = list(range(adj.shape[0]))
+    #     new_indices.remove(max_degree_node)
+    #     adj = adj[new_indices][:, new_indices]
+    #     dataset.data.edge_index = adj.nonzero(as_tuple=False).T
+    #     dataset.data.x = torch.cat((dataset.data.x[:max_degree_node, :], dataset.data.x[max_degree_node+1:, :]))
+    #     dataset.data.y = torch.cat((dataset.data.y[:max_degree_node], dataset.data.y[max_degree_node+1:]))
+    #     dataset.data.train_mask = torch.cat((dataset.data.train_mask[:max_degree_node], dataset.data.train_mask[max_degree_node+1:]))
+    #     dataset.data.val_mask = torch.cat((dataset.data.val_mask[:max_degree_node], dataset.data.val_mask[max_degree_node+1:]))
+    #     dataset.data.test_mask = torch.cat((dataset.data.test_mask[:max_degree_node], dataset.data.test_mask[max_degree_node+1:]))
+    #     dataset.data.num_nodes = dataset.data.x.shape[0]
+    #     dataset.__data_list__ = None
+    #     dataset.data, dataset.slices = dataset.collate([dataset.data])
+    #
+    #     # edge_index, edge_weight = get_laplacian(dataset.data.edge_index, normalization="sym")
+    #     # L = torch.sparse_coo_tensor(edge_index, edge_weight).to_dense()
+    #     # l2 = torch.symeig(L)[0]
+    #     # from matplotlib import pyplot as plt
+    #     # plt.plot(torch.arange(L.shape[0]), l2)
+    #     # plt.title('remove {} nodes'.format(_+1))
+    #     # plt.savefig('./remove_{}_nodes.png'.format(_ + 1))
+    #     # plt.clf()
+    #
+    # # Adding high-degree dummy nodes
+    # print('dummy nodes:', dummy_nodes)
+    # for _ in range(dummy_nodes):
+    #     adj = torch.sparse_coo_tensor(dataset[0].edge_index, torch.ones(dataset[0].edge_index.shape[1])).to_dense()
+    #     # edge_index, edge_weight = get_laplacian(dataset.data.edge_index, normalization="sym")
+    #     # L = torch.sparse_coo_tensor(edge_index, edge_weight).to_dense()
+    #     # l1 = torch.symeig(L)[0]
+    #
+    #     new_col = torch.dropout(torch.ones(adj.shape[0], 1).float(), 0.8, train=True).bool().float()
+    #     adj = torch.cat((adj, new_col), dim=1)
+    #     new_row=torch.cat((new_col.T, torch.ones(1,1).float()), dim=1)
+    #     adj = torch.cat((adj, new_row), dim=0)
+    #     dataset.data.edge_index = adj.nonzero(as_tuple=False).T
+    #     dataset.data.x = torch.cat((dataset.data.x, dataset.data.x[0].view(1, -1)))
+    #     dataset.data.y = torch.cat((dataset.data.y, dataset.data.y[0].view(1)))
+    #     dataset.data.train_mask = torch.cat((dataset.data.train_mask, torch.ones(1).bool()))
+    #     dataset.data.val_mask = torch.cat((dataset.data.val_mask, torch.zeros(1).bool()))
+    #     dataset.data.test_mask = torch.cat((dataset.data.test_mask, torch.zeros(1).bool()))
+    #     dataset.data.num_nodes = dataset.data.x.shape[0]
+    #     dataset.__data_list__ = None
+    #     dataset.data, dataset.slices = dataset.collate([dataset.data])
+    #
+    #     # edge_index, edge_weight = get_laplacian(dataset.data.edge_index, normalization="sym")
+    #     # L = torch.sparse_coo_tensor(edge_index, edge_weight).to_dense()
+    #     # l2 = torch.symeig(L)[0]
+    #     # from matplotlib import pyplot as plt
+    #     # plt.plot(torch.arange(L.shape[0]), l2)
+    #     # plt.title('{} dummy nodes'.format(_+1))
+    #     # plt.savefig('./{}_dummy_100.png'.format(_ + 1))
+    #     # plt.clf()
+
 
     if transform is not None and normalize_features:
         dataset.transform = T.Compose([T.NormalizeFeatures(), transform])
@@ -173,7 +235,19 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
         print("Original #nodes:", data_nx.number_of_nodes())
         data_nx = data_nx.subgraph(max(nx.connected_components(data_nx), key=len))
         print("#Nodes after lcc:", data_nx.number_of_nodes())
-        lcc_mask = list(data_nx.nodes)
+        lcc_mask = index_to_mask(torch.tensor(list(data_nx.nodes)), size=dataset[0].num_nodes)
+        adj = torch.sparse_coo_tensor(dataset[0].edge_index, torch.ones(dataset[0].edge_index.shape[1])).to_dense()
+        adj = adj[lcc_mask][:, lcc_mask]
+        dataset.data.x = dataset.data.x[lcc_mask]
+        dataset.data.y = dataset.data.y[lcc_mask]
+        dataset.data.train_mask = dataset.data.train_mask[lcc_mask]
+        dataset.data.val_mask = dataset.data.val_mask[lcc_mask]
+        dataset.data.test_mask = dataset.data.test_mask[lcc_mask]
+        dataset.data.edge_index = adj.nonzero(as_tuple=False).T
+        dataset.data, dataset.slices = dataset.collate([dataset.data])
+        del dataset.__data_list__
+        assert(nx.is_connected(to_networkx(dataset[0]).to_undirected()))
+
 
     if permute_masks is not None:
         # label_distributions = torch.tensor(matching_labels_distribution(dataset)).cpu()
