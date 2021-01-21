@@ -101,9 +101,11 @@ class Graph(object):
 
 
 class Filter(nn.Module):
-    def __init__(self, G, kernel, nf, device, chebyshev_order=32):
+    def __init__(self, G, kernel, nf, device, chebyshev_order=32, method="chebyshev", lanczos_order=10):
         super(Filter, self).__init__()
         self.G = G
+        self.method=method
+        self.lanczos_order = lanczos_order
         self.device = device
         self.nf = nf
 
@@ -167,6 +169,78 @@ class Filter(nn.Module):
 
         return r
 
+    def lanczos_op(self, order=16):
+        signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
+        V, H, _ = self.lanczos(
+            self.G.L,
+            order,
+            signal
+        )
+        Eh, Uh = torch.symeig(H, eigenvectors=True)
+        Eh[Eh < 0] = 0
+        V = torch.matmul(V, Uh)
+        nf = self._kernel.out_channel
+        fe = self._kernel(Eh)
+        c = V.matmul(fe.view(Eh.shape[0], Eh.shape[1], nf) * V.permute(0, 2, 1).matmul(signal))
+        return c.view(self.G.n_vertices, self.G.n_vertices*nf).T
+
+    def lanczos(self, A, order, x):
+        Z, N, M = x.shape
+
+        # normalization
+        # q = torch.divide(x, kron(torch.ones((1, N)), torch.linalg.norm(x, axis=0)))
+        # q = x when x is kronecker
+        q = x
+
+        # initialization
+        hiv = torch.arange(0, order * M, order)
+        V = torch.empty((Z, N, M * order)).fill_(1e-12)
+        V[:, :, hiv] = q
+
+        H = torch.empty((Z, order + 1, M * order)).fill_(1e-12)
+        r = torch.matmul(A, q)
+        H[:, 0, hiv] = torch.sum(q * r, axis=1)
+        # r -= (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) * q
+        # (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) will always be all ones
+        r -= q
+        H[:, 1, hiv] = torch.linalg.norm(r, axis=1)
+
+        orth = torch.empty(Z, order).fill_(1e-12)
+        orth[:, 0] = torch.linalg.norm(torch.matmul(V.permute(0, 2, 1), V) - M, axis=(1, 2))
+
+        for k in range(1, order):
+            if H.isnan().any() or H.isinf().any():
+                H = H[:, :k, :k]
+                V = V[:, :, :k]
+                orth = orth[:, :k]
+                return V, H, orth
+
+            H[:, k - 1, hiv + k] = H[:, k, hiv + k - 1]
+            v = q
+            q = r / (H[:, k - 1, k + hiv]).repeat(1, 1, N).view(N, N, 1)
+            q.clamp_(min=-9e15, max=9e15)
+
+            V[:, :, k + hiv] = q
+
+            r = torch.matmul(A, q)
+            r -= H[:, k - 1, k + hiv].repeat(1, 1, N).view(N, N, 1) * v
+            H[:, k, k + hiv] = torch.sum(torch.multiply(q, r), axis=1)
+            H.clamp_(min=-9e15, max=9e15)
+            r -= H[:, k, k + hiv].repeat(1, 1, N).view(N, N, 1) * q
+
+            # The next line has to be checked
+            r -= torch.matmul(V, torch.matmul(V.permute(0, 2, 1), r))  # full reorthogonalization
+            r.clamp_(min=-9e15, max=9e15)
+            H[:, k + 1, k + hiv] = torch.linalg.norm(r, axis=0)
+            temp = torch.matmul(V.permute(0, 2, 1), V) - M
+            temp.clamp_(min=-9e15, max=9e15)
+
+            orth[:, k] = torch.linalg.norm(temp, axis=(1, 2))
+
+        H = H[:, :order, :order]
+
+        return V, H, orth
+
     def forward(self) -> object:
         """
         Parameters
@@ -179,7 +253,93 @@ class Filter(nn.Module):
         """
 
         # TODO: update Chebyshev implementation (after 2D filter banks).
-        c = self.compute_cheby_coeff(m=self.chebyshev_order)
-        s = self.cheby_op(c)
+        if self.method == "chebyshev":
+            c = self.compute_cheby_coeff(m=self.chebyshev_order)
+            s = self.cheby_op(c)
+        else:
+            s = self.lanczos_op(order=self.lanczos_order)
 
         return s
+
+    def localize(self, i, **kwargs):
+        s = torch.zeros(self.G.n_vertices)
+        s[i] = 1
+
+        return np.sqrt(self.G.n_vertices) * self.forward(s, **kwargs)
+
+    def estimate_frame_bounds(self, x=None):
+        if x is None:
+            x = torch.linspace(0, self.G.lmax, 1000)
+
+        sum_filters = torch.sum(self.evaluate(x) ** 2, dim=0)
+
+        return sum_filters.min(), sum_filters.max()
+
+    def complement(self, frame_bound=None):
+        def kernel(x):
+            y = self.evaluate(x)
+            y = torch.pow(y, 2)
+            y = torch.sum(y, dim=1)
+
+            if frame_bound is None:
+                bound = y.max()
+            elif y.max() > frame_bound:
+                raise ValueError('The chosen bound is not feasible. '
+                                 'Choose at least {}.'.format(y.max()))
+            else:
+                bound = frame_bound
+
+            return torch.sqrt(bound - y)
+
+        return Filter(self.G, kernel)
+
+    def inverse(self):
+        A, _ = self.estimate_frame_bounds()
+        if A == 0:
+            raise ValueError('The filter bank is not invertible as it is not '
+                             'a frame (lower frame bound A=0).')
+
+        def kernel(g, i, x):
+            y = g.evaluate(x).T
+            z = torch.pinverse(y.view(-1, 1)).view(-1)
+            return z[:, i]  # Return one filter.
+
+        return Filter(self.G, kernel)
+
+    def plot(self, eigenvalues=None, sum=None, title=None,
+             ax=None, **kwargs):
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        x = torch.linspace(torch.min(self.G.e), self.G.lmax, self.chebyshev_order).detach()
+        y = self.evaluate(x).T.detach()
+        x = x.cpu()
+        y = y.cpu()
+        lines = ax.plot(x, y)
+
+        if len(y.shape) == 2:
+            for i in range(y.shape[1]):
+                ax.plot(x, y[:, i], '.')
+        else:
+            ax.plot(x, y, '.')
+        if sum:
+            ax.plot(x, np.sum(y ** 2, 1), '.')
+
+        # TODO: plot highlighted eigenvalues
+        if sum:
+            line_sum, = ax.plot(x, np.sum(y ** 2, 1), 'k', **kwargs)
+
+        ax.set_xlabel(r"$\lambda$: laplacian's eigenvalues / graph frequencies")
+        ax.set_ylabel(r'$\hat{g}(\lambda)$: filter response')
+        plt.show()
+
+
+def _sum_ind(ind1, ind2):
+    ind = ind1.view(-1).repeat(ind2.size(), 1).T + ind2.view(-1)
+    return ind.view(-1)
+
+
+def kron(m1, m2):
+    matrix1 = m1 if len(m1.shape) ==2 else m1.view(-1, 1)
+    matrix2 = m2 if len(m2.shape) ==2 else m2.view(-1, 1)
+    return torch.ger(matrix1.view(-1), matrix2.view(-1)).reshape(*(matrix1.size() + matrix2.size())).permute([0, 2, 1, 3]).reshape(matrix1.size(0) * matrix2.size(0), matrix1.size(1) * matrix2.size(1))

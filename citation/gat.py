@@ -11,6 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--random_splits', type=bool, default=False)
 parser.add_argument('--runs', type=int, default=1)
+parser.add_argument('--dummy_nodes', type=int, default=0)
+parser.add_argument('--removal_nodes', type=int, default=0)
 parser.add_argument('--epochs', type=int, default=1000)
 parser.add_argument('--lr', type=float, default=0.005)
 parser.add_argument('--weight_decay', type=float, default=0.0005)
@@ -71,13 +73,14 @@ class Net(torch.nn.Module):
         # att2 = torch.zeros(data.num_nodes, data.num_nodes)
         # att1[list(map(lambda x: torch.tensor(x), edge_index_1.tolist()))] = att_val_1
         # att2[list(map(lambda x: torch.tensor(x), edge_index_2.tolist()))] = att_val_2.view(-1)
-        return F.log_softmax(x, dim=1), None, None
+        return F.log_softmax(x, dim=1), x
 
 
 permute_masks = random_planetoid_splits if args.random_splits else None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
                                     permute_masks=permute_masks, split=args.split, lcc=args.lcc, cuda=args.cuda,
-                                    node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
+                                    node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t,
+                                    dummy_nodes = args.dummy_nodes, removal_nodes = args.removal_nodes)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)

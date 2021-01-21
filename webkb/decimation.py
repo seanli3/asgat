@@ -43,6 +43,7 @@ parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
 parser.add_argument('--split', type=str, default='full')
+parser.add_argument('--method', type=str, default='chebyshev')
 parser.add_argument('--dissimilar_t', type=float, default=1)
 args = parser.parse_args()
 print(args)
@@ -71,6 +72,7 @@ class Net(torch.nn.Module):
         self.G = Graph(data)
 
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
+                                                 method=args.method,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
                                                  alpha=args.alpha, chebyshev_order=args.chebyshev_order, concat=True,
@@ -87,6 +89,7 @@ class Net(torch.nn.Module):
         # self.W = torch.nn.Parameter(torch.zeros(args.hidden * args.heads, dataset.num_classes))
 
         self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes, filter=args.filter,
+                                                  method=args.method,
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
                                                   out_channels=args.output_heads, alpha=args.alpha, pre_training=False,
                                                   chebyshev_order=args.chebyshev_order, concat=False,

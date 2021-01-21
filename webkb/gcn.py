@@ -11,6 +11,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--random_splits', type=bool, default=False)
 parser.add_argument('--runs', type=int, default=1)
+parser.add_argument('--dummy_nodes', type=int, default=0)
+parser.add_argument('--removal_nodes', type=int, default=0)
 parser.add_argument('--epochs', type=int, default=1000)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--lr', type=float, default=0.01)
@@ -46,11 +48,12 @@ class Net(torch.nn.Module):
         x = F.relu(self.conv1(x, edge_index))
         x = F.dropout(x, p=args.dropout, training=self.training)
         x = self.conv2(x, edge_index)
-        return F.log_softmax(x, dim=1), None
+        return F.log_softmax(x, dim=1), x
 
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
                       permute_masks=None, lcc=args.lcc,
-                      node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
+                      node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t,
+                      dummy_nodes = args.dummy_nodes, removal_nodes = args.removal_nodes)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
