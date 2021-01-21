@@ -124,12 +124,10 @@ class Filter(nn.Module):
 
         a1 = (a_arange[1] - a_arange[0]) / 2
         a2 = (a_arange[1] + a_arange[0]) / 2
-        c = torch.empty(m+1, self.nf, device=self.device)
 
         tmpN = torch.arange(N, device=self.device)
         num = torch.cos(np.pi * (tmpN + 0.5) / N)
-        for o in range(m + 1):
-            c[o, :] = 2. / N * torch.cos(np.pi * o * (tmpN + 0.5) / N).view(1, -1).mm(self._kernel(a1 * num + a2))
+        c = 2. / N * torch.cos(np.pi * tmpN.view(-1,1) * (tmpN + 0.5) / N).mm(self._kernel(a1 * num + a2))
 
         return c
 
@@ -151,18 +149,16 @@ class Filter(nn.Module):
         twf_cur = (G.L - a2*torch.eye(G.n_vertices, device=self.device)) / a1
 
         nf = c.shape[1]
-        r = torch.empty(nf*G.n_vertices, G.n_vertices, device=self.device)
-
-        tmpN = torch.arange(G.n_vertices, dtype=int, device=self.device)
-        for i in range(nf):
-            r[tmpN + G.n_vertices*i, :] = twf_old * 0.5 * c[0][i] + twf_cur * c[1][i]
+        r = (twf_old*0.5).multiply(c[0, :nf].repeat(G.n_vertices, G.n_vertices, 1).T) \
+               + twf_cur.multiply(c[1, :nf].repeat(G.n_vertices, G.n_vertices, 1).T)
+        r = r.reshape(nf*G.n_vertices, G.n_vertices)
 
         factor = (2 / a1) * (G.L - a2*torch.eye(G.n_vertices, device=self.device))
 
         for k in range(2, M):
             twf_new = factor.mm(twf_cur) - twf_old
-            for i in range(nf):
-                r[tmpN + G.n_vertices * i, :] += twf_new*c[k,i]
+            r += (twf_new*c[k,:].repeat(G.n_vertices, G.n_vertices, 1).T)\
+                .reshape(nf*G.n_vertices, G.n_vertices)
 
             twf_old = twf_cur
             twf_cur = twf_new
