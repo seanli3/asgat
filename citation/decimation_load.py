@@ -25,7 +25,7 @@ parser.add_argument('--dropout', type=float, default=0.6174883141474811)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
-parser.add_argument('--chebyshev_order', type=int, default=15, help='Chebyshev polynomial order')
+parser.add_argument('--order', type=int, default=15, help='Chebyshev polynomial order')
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
@@ -60,7 +60,7 @@ class Net(torch.nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 alpha=args.alpha, chebyshev_order=args.chebyshev_order)
+                                                 alpha=args.alpha, order=args.order)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
         #                             nn.Linear(128, 64),
@@ -75,7 +75,7 @@ class Net(torch.nn.Module):
         self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes, filter=args.filter,
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
                                                   out_channels=1, alpha=args.alpha, pre_training=False,
-                                                  chebyshev_order=args.chebyshev_order)
+                                                  order=args.order)
 
     def reset_parameters(self):
         self.analysis.reset_parameters()

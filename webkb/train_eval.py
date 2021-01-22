@@ -21,9 +21,9 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
         torch.cuda.synchronize()
 
     for _ in range(runs):
-        # print('Runs:', _)
-        for split in range(data.train_mask.shape[0]):
-            # print('Split:', split)
+        print('Runs:', _)
+        for split in range(1):
+            print('Split:', split)
             model.to(device).reset_parameters()
             optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
             t_start = time.perf_counter()
@@ -37,8 +37,8 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                 train(model, optimizer, data, split)
                 eval_info = evaluate(model, data, split)
                 eval_info['epoch'] = epoch
-                # if epoch % 1 == 0:
-                #     print(eval_info)
+                if epoch % 1 == 0:
+                    print(eval_info)
 
                 if logger is not None:
                     logger(eval_info)
@@ -84,8 +84,42 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                  test_macro_f1s.std().item(),
                  duration.mean().item(),
                  eval_info_early_model['epoch']))
+
+    # print('row_diff:', cal_row_diff(model, data, split), 'col_diff:', cal_col_diff(model, data, split))
     return test_accs.mean().item()
 
+
+
+def cal_col_diff(model, data, split):
+    with torch.no_grad():
+        model.eval()
+        _, embeddings = model(data)
+        test_embeddings = embeddings[data.test_mask[split]]
+        normalized_test_embeddings = test_embeddings/torch.linalg.norm(test_embeddings, 1, dim=0)
+        index = list(range(test_embeddings.shape[1]))
+        sum = 0
+        for _ in range(test_embeddings.shape[1]):
+            index.insert(0, index.pop())
+            sum += torch.linalg.norm(normalized_test_embeddings - normalized_test_embeddings[:, index], 2, dim=0).sum()
+        row_diff = sum / pow(test_embeddings.shape[1], 2)
+    return row_diff
+
+
+
+def cal_row_diff(model, data, split):
+    with torch.no_grad():
+        model.eval()
+        _, embeddings = model(data)
+        test_embeddings = embeddings[data.test_mask[split]]
+        normalized_test_embeddings = test_embeddings/torch.linalg.norm(test_embeddings, 1, dim=1).view(-1, 1)
+        # calculate row-diff
+        index = list(range(test_embeddings.shape[0]))
+        sum = 0
+        for _ in range(test_embeddings.shape[0]):
+            index.insert(0, index.pop())
+            sum += torch.linalg.norm(normalized_test_embeddings - normalized_test_embeddings[index], 2, dim=1).sum()
+        row_diff = sum / pow(test_embeddings.shape[0], 2)
+    return row_diff
 
 def train(model, optimizer, data, split):
     model.train()

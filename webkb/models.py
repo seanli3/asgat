@@ -6,7 +6,7 @@ import copy
 
 class GraphDecimation(nn.Module):
     def __init__(self, G, nfeat, nhid, nclass, feature_dropout, spectrum_dropout, alpha, nheads,
-                 chebyshev_order, attention_dropout, kernel=None):
+                 order, attention_dropout, kernel=None):
         super(GraphDecimation, self).__init__()
         self.G = G
         self.G.estimate_lmax()
@@ -15,12 +15,12 @@ class GraphDecimation(nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, nfeat, nhid, dropout=attention_dropout,
                                                  out_channels=nheads,
                                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                 kernel=kernel, chebyshev_order=chebyshev_order)
+                                                 kernel=kernel, order=order)
 
         self.synthesis = GraphSpectralFilterLayer(self.G, nhid * nheads, nclass, dropout=attention_dropout,
                                                   out_channels=1,
                                                   spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                  kernel=None, chebyshev_order=chebyshev_order)
+                                                  kernel=None, order=order)
 
     def forward(self, x):
         x = self.feature_dropout(x)
@@ -32,7 +32,7 @@ class GraphDecimation(nn.Module):
 
 class DeepGraphDecimation(nn.Module):
     def __init__(self, G, nfeat, nhid, nclass, feature_dropout, spectrum_dropout, alpha, nheads,
-                 chebyshev_order, attention_dropout, kernel=None, layers=0):
+                 order, attention_dropout, kernel=None, layers=0):
         super(DeepGraphDecimation, self).__init__()
         self.G = G
         self.G.estimate_lmax()
@@ -42,7 +42,7 @@ class DeepGraphDecimation(nn.Module):
                                                  dropout=attention_dropout,
                                                  out_channels=nheads,
                                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                 kernel=kernel, chebyshev_order=chebyshev_order)
+                                                 kernel=kernel, order=order)
 
         self.layers = []
         for _ in range(layers):
@@ -52,13 +52,13 @@ class DeepGraphDecimation(nn.Module):
             self.layers.append(GraphSpectralFilterLayer(self.G, nhid * nheads, nhid, dropout=0,
                                  out_channels=nheads,
                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                 kernel=k, chebyshev_order=chebyshev_order))
+                                 kernel=k, order=order))
 
 
         self.synthesis = GraphSpectralFilterLayer(self.G, nhid * nheads, nclass, dropout=0,
                                                   out_channels=1,
                                                   spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                  kernel=None, chebyshev_order=chebyshev_order)
+                                                  kernel=None, order=order)
 
     def forward(self, x):
         x = self.feature_dropout(x)
@@ -73,7 +73,7 @@ class DeepGraphDecimation(nn.Module):
 
 class GraphDecimationMlp(nn.Module):
     def __init__(self, G, nfeat, nhid, nclass, feature_dropout, spectrum_dropout, mlp_hidden, alpha, nheads,
-                 chebyshev_order, attention_dropout, mlp_dropout, kernel=None):
+                 order, attention_dropout, mlp_dropout, kernel=None):
         super(GraphDecimationMlp, self).__init__()
         self.G = G
         self.G.estimate_lmax()
@@ -82,7 +82,7 @@ class GraphDecimationMlp(nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, nfeat, nhid, dropout=attention_dropout,
                                                  out_channels=nheads,
                                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                 kernel=kernel, chebyshev_order=chebyshev_order)
+                                                 kernel=kernel, order=order)
 
         self.out_att = nn.Sequential(
             nn.Linear(nhid*nheads, mlp_hidden),

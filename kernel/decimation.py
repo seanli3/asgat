@@ -10,13 +10,13 @@ class Decimation(torch.nn.Module):
         super(Decimation, self).__init__()
         self.conv1 = GraphSpectralFilterLayer(dataset.num_node_features, hidden,
                                                  dropout=0.6, out_channels=8, pre_training=False,
-                                                 alpha=0.2, chebyshev_order=14, concat=False)
+                                                 alpha=0.2, order=14, concat=False)
         self.convs = torch.nn.ModuleList()
 
         for _ in range(num_layers - 1):
             self.convs.append(GraphSpectralFilterLayer(hidden, hidden,
                                   dropout=0.6, out_channels=8, pre_training=False,
-                                  alpha=0.2, chebyshev_order=14, concat=False))
+                                  alpha=0.2, order=14, concat=False))
 
         self.lin1 = Linear(hidden, hidden)
         self.lin2 = Linear(hidden, dataset.num_classes)

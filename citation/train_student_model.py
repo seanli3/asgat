@@ -49,7 +49,7 @@ output_heads = 10
 normalize_features = True
 pre_training = False
 cuda = True
-chebyshev_order = 16
+order = 16
 edge_dropout = 0
 node_feature_dropout = 0
 filter_name = 'analysis'
@@ -78,11 +78,11 @@ class Net(torch.nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, hidden,
                                                  dropout=dropout, out_channels=heads, filter=filter_name,
                                                  pre_training=False, device='cuda' if cuda else 'cpu',
-                                                 alpha=alpha, chebyshev_order=chebyshev_order, concat=True)
+                                                 alpha=alpha, order=order, concat=True)
         self.synthesis = GraphSpectralFilterLayer(self.G, hidden * heads, dataset.num_classes, filter=filter_name,
                                                   device='cuda' if cuda else 'cpu', dropout=dropout,
                                                   out_channels=1, alpha=alpha, pre_training=False,
-                                                  chebyshev_order=chebyshev_order, concat=False)
+                                                  order=order, concat=False)
 
     def reset_parameters(self):
         self.analysis.reset_parameters()
@@ -119,13 +119,13 @@ class StudentNet(torch.nn.Module):
                                                  hidden if layers == 2 else dataset.num_classes,
                                                  dropout=dropout, out_channels=heads, filter=filter_name,
                                                  pre_training=False, device='cuda' if cuda else 'cpu',
-                                                 alpha=alpha, chebyshev_order=chebyshev_order,
+                                                 alpha=alpha, order=order,
                                                  concat=True if layers == 2 else False)
         if layers == 2:
             self.synthesis = GraphSpectralFilterLayer(self.G, hidden * heads, dataset.num_classes, filter=filter_name,
                                                   device='cuda' if cuda else 'cpu', dropout=dropout,
                                                   out_channels=1, alpha=alpha, pre_training=False,
-                                                  chebyshev_order=chebyshev_order, concat=False)
+                                                  order=order, concat=False)
     def reset_parameters(self):
         self.analysis.reset_parameters()
         if hasattr(self, 'synthesis'):

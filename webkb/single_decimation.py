@@ -36,7 +36,7 @@ parser.add_argument('--normalize_features', type=str2bool, default=True)
 parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
-parser.add_argument('--chebyshev_order', type=int, default=15, help='Chebyshev polynomial order')
+parser.add_argument('--order', type=int, default=15, help='Chebyshev polynomial order')
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
@@ -70,7 +70,7 @@ class SingleNet(torch.nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 alpha=args.alpha, chebyshev_order=args.chebyshev_order)
+                                                 alpha=args.alpha, order=args.order)
 
         self.linear = torch.nn.Linear(args.hidden * args.heads, dataset.num_classes)
 

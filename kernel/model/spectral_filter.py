@@ -140,11 +140,11 @@ class Graph(object):
 
 
 class Filter(nn.Module):
-    def __init__(self, kernel, chebyshev_order=32):
+    def __init__(self, kernel, order=32):
         super(Filter, self).__init__()
 
         self._kernel = kernel
-        self.chebyshev_order = chebyshev_order
+        self.order = order
 
 
     def evaluate(self, x):
@@ -156,7 +156,7 @@ class Filter(nn.Module):
         a, b = 0, G.lmax
         y = (2.0 * x - a - b) * (1.0 / (b - a))
         y2 = 2.0 * y
-        c = self.compute_cheby_coeff(G, m=self.chebyshev_order)
+        c = self.compute_cheby_coeff(G, m=self.order)
         (d, dd) = (c[-1], 0)  # Special case first step for efficiency
         for cj in c.flip(0)[1:-1]:  # Clenshaw's recurrence
             (d, dd) = (y2 * d - dd + cj, d)
@@ -247,7 +247,7 @@ class Filter(nn.Module):
         """
 
         # TODO: update Chebyshev implementation (after 2D filter banks).
-        c = self.compute_cheby_coeff(G, m=self.chebyshev_order)
+        c = self.compute_cheby_coeff(G, m=self.order)
         s = self.cheby_op(c, G)
 
         return s
@@ -296,7 +296,7 @@ class Filter(nn.Module):
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
-        x = torch.linspace(torch.min(G.e), G.lmax, self.chebyshev_order).detach()
+        x = torch.linspace(torch.min(G.e), G.lmax, self.order).detach()
         y = self.evaluate(x).T.detach()
         x = x.cpu()
         y = y.cpu()

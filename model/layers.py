@@ -54,7 +54,7 @@ class GraphSpectralFilterLayer(nn.Module):
     """
 
     def __init__(self, G, in_features, out_features, dropout, alpha, out_channels, device="cpu", concat=True,
-                 chebyshev_order=16, pre_training=False, filter="analysis", method="chebyshev", k=5):
+                 order=16, pre_training=False, filter="analysis", method="chebyshev", k=5):
         super(GraphSpectralFilterLayer, self).__init__()
         self.G = G
         self.k = k
@@ -73,11 +73,11 @@ class GraphSpectralFilterLayer(nn.Module):
         #     nn.ReLU(),
         #     nn.Linear(512, out_features, bias=False),
         # )
-        self.chebyshev_order = chebyshev_order
+        self.order = order
         self.N = G.n_vertices
         self.filter_type = filter
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, chebyshev_order=self.chebyshev_order)
+        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order)
         self.concat = concat
 
         self.to(self.device)
@@ -91,7 +91,7 @@ class GraphSpectralFilterLayer(nn.Module):
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, chebyshev_order=self.chebyshev_order, method=self.method)
+        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order, method=self.method)
 
         if self.pre_training:
             itersine = pygsp.filters.Itersine(self.G, self.out_channels)

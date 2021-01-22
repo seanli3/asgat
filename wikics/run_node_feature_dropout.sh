@@ -44,16 +44,16 @@ echo "========"
 #python appnp.py --dataset=CiteSeer --alpha=0.1 --node_feature_dropout=1
 
 echo "Our model"
-#python decimation.py --node_feature_dropout=1 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-python decimation.py --node_feature_dropout=0.9 --dataset=Citeseer --alpha=0.2 --lr=0.0005 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=8000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.8 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.7 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.6 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.5 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.4 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.3 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.2 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
-#python decimation.py --node_feature_dropout=0.1 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --chebyshev_order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=1 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+python decimation.py --node_feature_dropout=0.9 --dataset=Citeseer --alpha=0.2 --lr=0.0005 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=8000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.8 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.7 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.6 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.5 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.4 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.3 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.2 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
+#python decimation.py --node_feature_dropout=0.1 --dataset=Citeseer --alpha=0.2 --lr=0.0001 --hidden=24 --heads=8 --dropout=0.95 --cuda --order=16 --early_stopping=10 --epochs=10000 --weight_decay=0.001
 
 #echo "PubMed"
 #echo "======"

@@ -101,16 +101,15 @@ class Graph(object):
 
 
 class Filter(nn.Module):
-    def __init__(self, G, kernel, nf, device, chebyshev_order=32, method="chebyshev", lanczos_order=10):
+    def __init__(self, G, kernel, nf, device, order=32, method="chebyshev"):
         super(Filter, self).__init__()
         self.G = G
         self.method=method
-        self.lanczos_order = lanczos_order
         self.device = device
         self.nf = nf
 
         self._kernel = kernel
-        self.chebyshev_order = chebyshev_order
+        self.order = order
 
     def evaluate(self, x):
         y = self._kernel(x)
@@ -317,10 +316,10 @@ class Filter(nn.Module):
 
         # TODO: update Chebyshev implementation (after 2D filter banks).
         if self.method == "chebyshev":
-            c = self.compute_cheby_coeff(m=self.chebyshev_order)
+            c = self.compute_cheby_coeff(m=self.order)
             s = self.cheby_op(c)
         else:
-            s = self.lanczos_op(order=self.lanczos_order)
+            s = self.lanczos_op(order=self.order)
 
         return s
 
@@ -374,7 +373,7 @@ class Filter(nn.Module):
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
-        x = torch.linspace(torch.min(self.G.e), self.G.lmax, self.chebyshev_order).detach()
+        x = torch.linspace(torch.min(self.G.e), self.G.lmax, self.order).detach()
         y = self.evaluate(x).T.detach()
         x = x.cpu()
         y = y.cpu()

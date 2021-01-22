@@ -38,7 +38,7 @@ parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--self_loop', action='store_true')
 parser.add_argument('--cuda', action='store_true')
-parser.add_argument('--chebyshev_order', type=int, default=15, help='Chebyshev polynomial order')
+parser.add_argument('--order', type=int, default=15, help='Chebyshev polynomial order')
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
@@ -75,7 +75,7 @@ class Net(torch.nn.Module):
                                                  method=args.method,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 alpha=args.alpha, chebyshev_order=args.chebyshev_order, concat=True,
+                                                 alpha=args.alpha, order=args.order, concat=True,
                                                  k=args.k)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
@@ -92,7 +92,7 @@ class Net(torch.nn.Module):
                                                   method=args.method,
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
                                                   out_channels=args.output_heads, alpha=args.alpha, pre_training=False,
-                                                  chebyshev_order=args.chebyshev_order, concat=False,
+                                                  order=args.order, concat=False,
                                                   k=args.k)
 
         if args.cuda:

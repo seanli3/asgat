@@ -36,8 +36,8 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            # if epoch % 10 == 0:
-            #     print(eval_info)
+            if epoch % 1 == 0:
+                print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -85,7 +85,42 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                  test_macro_f1s.mean().item(),
                  test_macro_f1s.std().item(),
                  duration.mean().item()))
+
+
+    print('row_diff:', cal_row_diff(model, data), 'col_diff:', cal_col_diff(model, data))
     return test_accs.mean().item()
+
+
+def cal_col_diff(model, data):
+    with torch.no_grad():
+        model.eval()
+        _, embeddings = model(data)
+        test_embeddings = embeddings[data.test_mask]
+        normalized_test_embeddings = test_embeddings/torch.linalg.norm(test_embeddings, 1, dim=0)
+        index = list(range(test_embeddings.shape[1]))
+        sum = 0
+        for _ in range(test_embeddings.shape[1]):
+            index.insert(0, index.pop())
+            sum += torch.linalg.norm(normalized_test_embeddings - normalized_test_embeddings[:, index], 2, dim=0).sum()
+        col_diff = sum / pow(test_embeddings.shape[1], 2)
+    return col_diff
+
+
+
+def cal_row_diff(model, data):
+    with torch.no_grad():
+        model.eval()
+        _, embeddings = model(data)
+        test_embeddings = embeddings[data.test_mask]
+        normalized_test_embeddings = test_embeddings/torch.linalg.norm(test_embeddings, 1, dim=1).view(-1, 1)
+        # calculate row-diff
+        index = list(range(test_embeddings.shape[0]))
+        sum = 0
+        for _ in range(test_embeddings.shape[0]):
+            index.insert(0, index.pop())
+            sum += torch.linalg.norm(normalized_test_embeddings - normalized_test_embeddings[index], 2, dim=1).sum()
+        row_diff = sum / pow(test_embeddings.shape[0], 2)
+    return row_diff
 
 
 def train(model, optimizer, data):

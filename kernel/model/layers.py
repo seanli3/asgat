@@ -52,7 +52,7 @@ class GraphSpectralFilterLayer(nn.Module):
     """
 
     def __init__(self, in_features, out_features, dropout, alpha, out_channels, device="cpu", concat=True,
-                 chebyshev_order=16, pre_training=False, filter="analysis"):
+                 order=16, pre_training=False, filter="analysis"):
         super(GraphSpectralFilterLayer, self).__init__()
         self.device=device
         self.dropout = dropout
@@ -62,17 +62,17 @@ class GraphSpectralFilterLayer(nn.Module):
         self.alpha = alpha
         self.pre_training = pre_training
         self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
-        self.chebyshev_order = chebyshev_order
+        self.order = order
         self.leakyrelu = nn.LeakyReLU(self.alpha)
         self.filter_type = filter
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.filter_kernel, chebyshev_order=self.chebyshev_order)
+        self.filter = Filter(self.filter_kernel, order=self.order)
         self.concat = concat
 
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.filter_kernel, chebyshev_order=self.chebyshev_order)
+        self.filter = Filter(self.filter_kernel, order=self.order)
 
     def forward(self, input, edge_index):
         adj = torch.sparse_coo_tensor(edge_index, torch.ones(edge_index.shape[1]))

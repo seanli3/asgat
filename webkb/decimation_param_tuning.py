@@ -12,6 +12,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--trials', type=int, default=20)
+parser.add_argument('--lcc', type=bool, default=False)
+parser.add_argument('--method', type=str, default='chebyshev')
 arg = parser.parse_args()
 
 args = {
@@ -29,10 +31,12 @@ args = {
     'normalize_features': True,
     'pre_training': True,
     'cuda': True,
-    'chebyshev_order': 13,
+    'order': 13,
     'edge_dropout': 0,
     'node_feature_dropout': 0,
-    'filter': 'analysis'
+    'filter': 'analysis',
+    'method': arg.method,
+    'lcc': arg.lcc
 }
 
 
@@ -63,7 +67,7 @@ def decimation(args):
             self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args['hidden'],
                                                      dropout=args['dropout'], out_channels=args['heads'], filter=args['filter'],
                                                      pre_training=args['pre_training'], device='cuda' if args['cuda'] else 'cpu',
-                                                     alpha=args['alpha'], chebyshev_order=args['chebyshev_order'],
+                                                     alpha=args['alpha'], order=args['order'],
                                                      k=args['k'])
             # self.mlp = nn.Sequential(nn.Linear(args['hidden * args['heads, 128),
             #                             nn.ReLU(inplace=True),
@@ -79,7 +83,7 @@ def decimation(args):
             self.synthesis = GraphSpectralFilterLayer(self.G, args['hidden'] * args['heads'], dataset.num_classes, filter=args['filter'],
                                                       device='cuda' if args['cuda'] else 'cpu', dropout=args['dropout'],
                                                       out_channels=1, alpha=args['alpha'], pre_training=False,
-                                                      chebyshev_order=args['chebyshev_order'], k=args['k'])
+                                                      order=args['order'], k=args['k'])
             if args['cuda']:
                 self.to('cuda')
 
@@ -128,7 +132,7 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'normalize_features', 'type': 'fixed', 'value': True},
     {'name': 'pre_training', 'type': 'fixed', 'value': False},
     {'name': 'cuda', 'type': 'fixed', 'value': args['cuda']},
-    {'name': 'chebyshev_order', 'type': 'fixed', "value": 16},
+    {'name': 'order', 'type': 'fixed', "value": 16},
     {'name': 'edge_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'filter', 'type': 'fixed', 'value': 'analysis'},
