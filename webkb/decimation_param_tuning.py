@@ -125,7 +125,7 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.001, 0.01], "log_scale": True},
     {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 0.005], "log_scale": True},
     {'name': 'patience', 'type': 'fixed', 'value': 100},
-    {'name': 'hidden', 'type': 'range', "bounds": [16, 256], "log_scale": True},
+    {'name': 'hidden', 'type': 'range', "bounds": [64, 800], "log_scale": True},
     {'name': 'heads', 'type': 'range', "bounds": [1, 18]},
     {'name': 'dropout', "type": "range", "bounds": [0.1, 0.9]},
     {'name': 'self_loop', "type": "choice", "values": [True, False]},
