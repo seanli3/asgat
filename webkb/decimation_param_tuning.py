@@ -68,7 +68,7 @@ def decimation(args):
                                                      dropout=args['dropout'], out_channels=args['heads'], filter=args['filter'],
                                                      pre_training=args['pre_training'], device='cuda' if args['cuda'] else 'cpu',
                                                      alpha=args['alpha'], order=args['order'],
-                                                     k=args['k'])
+                                                     method=args['method'], k=args['k'])
             # self.mlp = nn.Sequential(nn.Linear(args['hidden * args['heads, 128),
             #                             nn.ReLU(inplace=True),
             #                             nn.Linear(128, 64),
@@ -83,7 +83,7 @@ def decimation(args):
             self.synthesis = GraphSpectralFilterLayer(self.G, args['hidden'] * args['heads'], dataset.num_classes, filter=args['filter'],
                                                       device='cuda' if args['cuda'] else 'cpu', dropout=args['dropout'],
                                                       out_channels=1, alpha=args['alpha'], pre_training=False,
-                                                      order=args['order'], k=args['k'])
+                                                      method=args['method'], order=args['order'], k=args['k'])
             if args['cuda']:
                 self.to('cuda')
 
@@ -109,7 +109,7 @@ def decimation(args):
             return F.log_softmax(x, dim=1), att1, att2
 
     use_dataset = lambda: get_dataset(args['dataset'], args['normalize_features'], edge_dropout=args['edge_dropout'],
-                                      permute_masks=None, cuda=args['cuda'],
+                                      permute_masks=None, cuda=args['cuda'], lcc=args['lcc'],
                                       node_feature_dropout=args['node_feature_dropout'], self_loop=args['self_loop'])
 
     return run(use_dataset, Net, args['runs'], args['epochs'], args['lr'], args['weight_decay'],
@@ -132,11 +132,13 @@ best_parameters, best_values, _, _ = optimize(
     {'name': 'normalize_features', 'type': 'fixed', 'value': True},
     {'name': 'pre_training', 'type': 'fixed', 'value': False},
     {'name': 'cuda', 'type': 'fixed', 'value': args['cuda']},
-    {'name': 'order', 'type': 'fixed', "value": 16},
+    {'name': 'lcc', 'type': 'fixed', 'value': arg.lcc},
+    {'name': 'method', 'type': 'fixed', 'value': arg.method},
+    {'name': 'order', 'type': 'range', "bounds": [10, 20]},
     {'name': 'edge_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'filter', 'type': 'fixed', 'value': 'analysis'},
-    {'name': 'k', 'type': 'fixed', 'value': 5}],
+    {'name': 'k', 'type': 'range', 'bounds': [3, 15]}],
     evaluation_function=decimation,
     total_trials=arg.trials,
     minimize=False)

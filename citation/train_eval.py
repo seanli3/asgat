@@ -36,8 +36,8 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
             train(model, optimizer, data)
             eval_info = evaluate(model, data)
             eval_info['epoch'] = epoch
-            if epoch % 1 == 0:
-                print(eval_info)
+            # if epoch % 1 == 0:
+            #     print(eval_info)
 
             if logger is not None:
                 logger(eval_info)
@@ -87,7 +87,7 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
                  duration.mean().item()))
 
 
-    print('row_diff:', cal_row_diff(model, data), 'col_diff:', cal_col_diff(model, data))
+    # print('row_diff:', cal_row_diff(model, data), 'col_diff:', cal_col_diff(model, data))
     return test_accs.mean().item()
 
 
