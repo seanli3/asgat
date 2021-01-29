@@ -5,6 +5,9 @@ import torch.nn as nn
 from scipy.sparse import coo_matrix
 from scipy import sparse
 from torch_sparse import spspmm
+import cvxpy as cp
+from cvxpylayers.torch import CvxpyLayer
+import warnings
 
 
 class Graph(object):
@@ -22,41 +25,49 @@ class Graph(object):
     def _get_upper_bound(self):
         return 2.0  # Equal iff the graph is bipartite.
 
-    def compute_laplacian(self, lap_type='combinatorial', q=0.02):
-        if lap_type != self.lap_type:
-            # Those attributes are invalidated when the Laplacian is changed.
-            # Alternative: don't allow the user to change the Laplacian.
-            self._lmax = None
-
-        self.lap_type = lap_type
-
-        d = torch.pow(self.dw, -0.5)
+    def compute_laplacian(self, lap_type='normalized', q=0.02):
         diagonal_indices = torch.tensor([list(range(self.n_vertices)), list(range(self.n_vertices))])
-        A = torch.sparse_coo_tensor(self.data.edge_index.to('cpu'), torch.ones(self.data.num_edges, device='cpu')).coalesce()
-        indexDmA, valueDmA = spspmm(
-            d.indices().repeat(2, 1),
-            d.values(),
-            # d.values().double(),
-            A.indices(),
-            A.values(),
-            # self.A.values().double(),
-            self.n_vertices,
-            self.n_vertices,
-            self.n_vertices,
-        )
-        indexDmAmD, valueDmAmD = spspmm(
-            indexDmA,
-            valueDmA,
-            d.indices().repeat(2, 1),
-            # d.values().double(),
-            d.values(),
-            self.n_vertices,
-            self.n_vertices,
-            self.n_vertices
-        )
-        self.L = (torch.sparse_coo_tensor(diagonal_indices, torch.ones(self.n_vertices),
-                                         [self.n_vertices, self.n_vertices], device=self.data.x.device) \
-                 - torch.sparse_coo_tensor(indexDmAmD, valueDmAmD, [self.n_vertices, self.n_vertices], device=self.data.x.device)).to_dense()
+        A = torch.sparse_coo_tensor(self.data.edge_index.to('cpu'),
+                                    torch.ones(self.data.num_edges, device='cpu')).coalesce()
+        if lap_type == 'normalized':
+            if lap_type != self.lap_type:
+                # Those attributes are invalidated when the Laplacian is changed.
+                # Alternative: don't allow the user to change the Laplacian.
+                self._lmax = None
+
+            self.lap_type = lap_type
+
+            d = torch.pow(self.dw, -0.5)
+            indexDmA, valueDmA = spspmm(
+                d.indices().repeat(2, 1),
+                d.values(),
+                # d.values().double(),
+                A.indices(),
+                A.values(),
+                # self.A.values().double(),
+                self.n_vertices,
+                self.n_vertices,
+                self.n_vertices,
+            )
+            indexDmAmD, valueDmAmD = spspmm(
+                indexDmA,
+                valueDmA,
+                d.indices().repeat(2, 1),
+                # d.values().double(),
+                d.values(),
+                self.n_vertices,
+                self.n_vertices,
+                self.n_vertices
+            )
+            self.L = (torch.sparse_coo_tensor(diagonal_indices, torch.ones(self.n_vertices),
+                                             [self.n_vertices, self.n_vertices], device=self.data.x.device) \
+                     - torch.sparse_coo_tensor(indexDmAmD, valueDmAmD, [self.n_vertices, self.n_vertices], device=self.data.x.device)).to_dense()
+        elif lap_type == 'combinatorial':
+            D = torch.sparse_coo_tensor(diagonal_indices, self.dw.to_dense(), [self.n_vertices, self.n_vertices], \
+                                        device=self.data.x.device)
+            self.L = (D - A).to_dense()
+        else:
+            self.L = A.to_dense()
 
     @property
     def dw(self):
@@ -101,7 +112,8 @@ class Graph(object):
 
 
 class Filter(nn.Module):
-    def __init__(self, G, kernel, nf, device, order=32, method="chebyshev"):
+    def __init__(self, G, kernel, nf, device, order=32, method="chebyshev", sample_size=300, Kb=18, Ka=2, radius=0.85,
+                 Tmax=200):
         super(Filter, self).__init__()
         self.G = G
         self.method=method
@@ -110,6 +122,35 @@ class Filter(nn.Module):
 
         self._kernel = kernel
         self.order = order
+
+        if method.lower() == 'arma':
+            self.Ka = Ka
+            self.Kb = Kb
+            self.Tmax = Tmax
+            self.sample_size = sample_size
+
+            _NM = cp.Parameter((sample_size, Kb + 1))
+            # _muMM = cp.Parameter((mu.shape[0], Ka))
+            _V = cp.Parameter((sample_size, Ka))
+            _res = cp.Parameter((sample_size, 1))
+            _resDiag = cp.Parameter((sample_size, Ka))
+            _ia = cp.Variable((Ka, 1))
+            _ib = cp.Variable((Kb + 1, 1))
+            _muMM = cp.Variable((sample_size, 1))
+            objective1 = cp.Minimize(cp.norm(_NM @ _ib - _resDiag @ _ia - _res))
+            constraints1 = [cp.max(cp.abs(_V @ _ia)) <= radius]
+            prob1 = cp.Problem(objective1, constraints1)
+            assert prob1.is_dpp()
+            self.op_layer = CvxpyLayer(prob1, parameters=[_NM, _V, _res, _resDiag], variables=[_ia, _ib])
+
+            _C = cp.Parameter((sample_size, Kb + 1))
+            _d = cp.Parameter((sample_size, 1))
+            _x = cp.Variable((Kb + 1, 1))
+            objective2 = cp.Minimize(0.5 * cp.power(cp.norm(_C @ _x - _d), 2))
+            constraints2 = []
+            prob2 = cp.Problem(objective2, constraints2)
+            assert prob2.is_dpp()
+            self.lsqlin = CvxpyLayer(prob2, parameters=[_C, _d], variables=[_x])
 
     def evaluate(self, x):
         y = self._kernel(x)
@@ -318,8 +359,11 @@ class Filter(nn.Module):
         if self.method == "chebyshev":
             c = self.compute_cheby_coeff(m=self.order)
             s = self.cheby_op(c)
-        else:
+        elif self.method == 'lanzcos':
             s = self.lanczos_op(order=self.order)
+        else:
+            b, a, _ = self.agsp_design_ARMA()
+            s = self.agsp_filter_ARMA_cgrad(b, a, Tmax=self.Tmax)
 
         return s
 
@@ -395,6 +439,84 @@ class Filter(nn.Module):
         ax.set_ylabel(r'$\hat{g}(\lambda)$: filter response')
         plt.show()
 
+    def agsp_design_ARMA(self):
+        l = torch.linspace(0, self.G.lmax, self.sample_size, device=self.device)
+        mu = self.G.lmax / 2 - l
+        if mu.shape[0] == 1:
+            mu = mu.T
+        res = self._kernel(mu.view(-1, 1)).T.view(-1, mu.shape[0], 1)
+        NM = torch.zeros(res.shape[0], res.shape[1], self.Kb + 1, device=self.device)
+        NM[:, :, 0] = 1
+        for k in range(1, self.Kb + 1):
+            NM[:, :, k] = NM[:, :, k - 1]*mu
+
+        MM = torch.zeros(mu.shape[0], self.Ka, device=self.device)
+        MM[:, 0] = mu
+        for k in range(1, self.Ka):
+            MM[:, k] = MM[:, k - 1] * mu
+
+        n = mu.numel()
+        V = torch.zeros(n, self.Ka, device=self.device)
+        for k in range(self.Ka):
+            V[:, k] = mu.pow(k+1)
+
+        C1 = torch.zeros(n*self.Ka, n*self.Ka, device=self.device)
+        for k in range(self.Ka):
+            C1[k * n: k * n + n, k * n: k * n + n ] = torch.diag(mu.pow(k+1))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            ia,ib = self.op_layer(NM, V, res, torch.diag_embed(res.squeeze())@MM,
+                                  solver_args={'eps': 1e-5, 'max_iters': 10_000} )
+        a = torch.cat([torch.ones(self.nf, 1, 1), ia], dim=1)
+        b = ib
+        # B = torch.vander(mu, increasing=True)
+        # b, =self.lsqlin(B[:,:self.Kb+1]/(B[:, :self.Ka+1]@a), res)
+        # rARMA = polyval(b.flip(1), mu)/polyval(a.flip(1), mu)
+
+        return b, a, None
+
+    def agsp_filter_ARMA_cgrad(self, b, a, tol=1e-4, Tmax=200):
+        # For stability, we will work with a shifted version of the Laplacian
+        M = 0.5 * self.G.lmax * torch.eye(self.G.n_vertices) - self.G.L
+        # M = self.G.L
+        x = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
+        b = L_mult(M, b, x, len(x.shape) >= 3)
+        y0 = b
+        y = y0
+        r = b - L_mult(M, a, y, len(x.shape) >= 3)
+        p = r
+        if len(r.shape) < 3:
+            rsold = r.T@r
+        elif len(r.shape) == 3:
+            rsold = r.permute(0, 2, 1)@r
+        else:
+            rsold = r.permute(0, 1, 3, 2)@r
+        for k in range(Tmax):
+            Ap = L_mult(M, a, p, len(x.shape) >= 3)
+            if len(p.shape) < 3:
+                alpha = rsold / ((p.T @ Ap)+1e-12)
+            elif len(r.shape) == 3:
+                alpha = rsold / ((p.permute(0, 2, 1) @ Ap)+1e-12)
+            else:
+                alpha = rsold / ((p.permute(0, 1, 3, 2) @ Ap)+1e-12)
+            alpha.clamp_(min=-9e12, max=9e12)
+            y = y + alpha * p
+            assert not torch.isnan(y).any()
+            r = r - alpha * Ap
+            if len(r.shape) < 3:
+                rsnew = r.T@r
+            elif len(r.shape) == 3:
+                rsnew = r.permute(0, 2, 1) @ r
+            else:
+                rsnew = r.permute(0, 1, 3, 2) @ r
+
+            if (rsnew.sqrt() <= tol).any():
+                break
+            else:
+                p = r + (rsnew / rsold) * p
+                rsold = rsnew
+        return y.view(self.nf * self.G.n_vertices, self.G.n_vertices)
+
 
 def _sum_ind(ind1, ind2):
     ind = ind1.view(-1).repeat(ind2.size(), 1).T + ind2.view(-1)
@@ -405,3 +527,19 @@ def kron(m1, m2):
     matrix1 = m1 if len(m1.shape) ==2 else m1.view(-1, 1)
     matrix2 = m2 if len(m2.shape) ==2 else m2.view(-1, 1)
     return torch.ger(matrix1.view(-1), matrix2.view(-1)).reshape(*(matrix1.size() + matrix2.size())).permute([0, 2, 1, 3]).reshape(matrix1.size(0) * matrix2.size(0), matrix1.size(1) * matrix2.size(1))
+
+def make_features (x, order):
+    return torch.stack([x ** i for i in range (order-1,-1, -1)], len(x.shape))
+
+def polyval (p, x):
+    N = p.shape[1] if len(p.shape) > 2 else p.shape[0]
+    return make_features(x, N)@p
+
+def L_mult(L, coef, x, expand=False):
+    dims = [-1, 1, 1, 1] if expand else [-1, 1, 1]
+    y = coef[:, 0].view(*dims) * x
+    for i in range(1, coef.shape[1]):
+        x = L @ x
+        y = y + (coef[:, i].view(*dims) * x)
+
+    return y

@@ -53,17 +53,21 @@ class GraphSpectralFilterLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, G, in_features, out_features, dropout, alpha, out_channels, device="cpu", concat=True,
-                 order=16, pre_training=False, filter="analysis", method="chebyshev", k=5):
+    def __init__(self, G, in_features, out_features, dropout, out_channels, device="cpu", concat=True,
+                 order=16, pre_training=False, filter="analysis", method="chebyshev", k=5, threshold=None,
+                 Kb=18, Ka=2, Tmax=200):
         super(GraphSpectralFilterLayer, self).__init__()
         self.G = G
         self.k = k
+        self.threshold = threshold
+        self.Kb = Kb
+        self.Ka = Ka
+        self.Tmax = Tmax
         self.device=device
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
         self.out_channels = out_channels
-        self.alpha = alpha
         self.method = method
         self.pre_training = pre_training
         # self.W = nn.Parameter(torch.zeros(size=(in_features, out_features)))
@@ -77,7 +81,8 @@ class GraphSpectralFilterLayer(nn.Module):
         self.N = G.n_vertices
         self.filter_type = filter
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order)
+        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order,
+                             method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax)
         self.concat = concat
 
         self.to(self.device)
@@ -91,16 +96,20 @@ class GraphSpectralFilterLayer(nn.Module):
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
         self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
-        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order, method=self.method)
+        self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order,
+                             method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax)
 
         if self.pre_training:
-            itersine = pygsp.filters.Itersine(self.G, self.out_channels)
+            if self.out_channels > 1:
+                itersine = pygsp.filters.Itersine(self.G, self.out_channels)
+            else:
+                itersine = pygsp.filters.Heat(self.G, self.out_channels)
             k_optimizer = torch.optim.Adam(self.filter_kernel.parameters(), lr=5e-4, weight_decay=1e-5)
             x = torch.rand(1000, device=self.device).view(-1, 1) * 2
             y = torch.FloatTensor(itersine.evaluate(x.cpu().view(-1))).to(self.device).T
             val_x = torch.rand(1000, device=self.device).view(-1, 1) * 2
             val_y = torch.FloatTensor(itersine.evaluate(val_x.cpu().view(-1))).to(self.device).T
-            for _ in range(10000):
+            for _ in range(2000):
                 self.filter_kernel.train()
                 k_optimizer.zero_grad()
                 predictions = self.filter_kernel(x)
@@ -124,9 +133,14 @@ class GraphSpectralFilterLayer(nn.Module):
         assert not torch.isnan(h).any()
 
         attention = self.filter()
-        ret = torch.topk(attention, k=self.k, dim=1)
-        attention.fill_(-9e15)
-        attention.scatter_(1, ret.indices, ret.values)
+
+        if self.threshold is not None:
+            attention = torch.where(attention > self.threshold, attention, torch.tensor([-9e15], device=self.device))
+        else:
+            ret = torch.topk(attention, k=self.k, dim=1)
+            attention.fill_(-9e15)
+            attention.scatter_(1, ret.indices, ret.values)
+
         attention = attention.softmax(1)
         attention = F.dropout(attention, self.dropout, training=self.training)
         nzidx = attention.nonzero(as_tuple=True)

@@ -23,7 +23,6 @@ parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--random_splits', type=bool, default=False)
 parser.add_argument('--runs', type=int, default=1)
 parser.add_argument('--epochs', type=int, default=3000)
-parser.add_argument('--alpha', type=float, default=0.7709619178612326)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--weight_decay', type=float, default=7.530100210192558e-05)
@@ -45,6 +44,10 @@ parser.add_argument('--filter', type=str, default='analysis')
 parser.add_argument('--split', type=str, default='full')
 parser.add_argument('--method', type=str, default='chebyshev')
 parser.add_argument('--dissimilar_t', type=float, default=1)
+parser.add_argument('--threshold', type=float, default=None)
+parser.add_argument('--Kb', type=int, default=18)
+parser.add_argument('--Ka', type=int, default=2)
+parser.add_argument('--Tmax', type=int, default=200)
 args = parser.parse_args()
 print(args)
 
@@ -71,12 +74,11 @@ class Net(torch.nn.Module):
         # adj = torch.sparse_coo_tensor(data.edge_index, torch.ones(data.num_edges))
         self.G = Graph(data)
 
-        self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
-                                                 method=args.method,
+        self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden, method=args.method,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 alpha=args.alpha, order=args.order, concat=True,
-                                                 k=args.k)
+                                                 order=args.order, concat=True, k=args.k,
+                                                 threshold=args.threshold, Kb=args.Kb, Ka=args.Ka, Tmax=args.Tmax)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
         #                             nn.Linear(128, 64),
@@ -88,12 +90,12 @@ class Net(torch.nn.Module):
 
         # self.W = torch.nn.Parameter(torch.zeros(args.hidden * args.heads, dataset.num_classes))
 
-        self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes, filter=args.filter,
-                                                  method=args.method,
-                                                  device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
-                                                  out_channels=args.output_heads, alpha=args.alpha, pre_training=False,
-                                                  order=args.order, concat=False,
-                                                  k=args.k)
+        self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes,
+                                                  method=args.method, dropout=args.dropout,
+                                                  out_channels=args.output_heads, filter=args.filter,
+                                                  pre_training=False, device='cuda' if args.cuda else 'cpu',
+                                                  order=args.order, concat=False, k=args.k,
+                                                  threshold=args.threshold, Kb=args.Kb, Ka=args.Ka, Tmax=args.Tmax)
 
         if args.cuda:
             self.to('cuda')
