@@ -467,8 +467,9 @@ class Filter(nn.Module):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             try:
-                ia,ib = self.op_layer(NM, V.repeat(res.shape[0], 1, 1), res, torch.diag_embed(res.squeeze())@MM,
-                                  solver_args={'eps': 1e-5, 'max_iters': 10_000} )
+                ia,ib = self.op_layer(NM, V.repeat(res.shape[0], 1, 1), res,
+                                        torch.diag_embed(res.view(res.shape[0], -1))@MM,
+                                        solver_args={'eps': 1e-5, 'max_iters': 10_000})
             except SolverError:
                 pass
         a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), ia], dim=1)
