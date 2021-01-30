@@ -8,6 +8,7 @@ from torch_sparse import spspmm
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
 import warnings
+from diffcp.cone_program import SolverError
 
 
 class Graph(object):
@@ -465,8 +466,11 @@ class Filter(nn.Module):
             C1[k * n: k * n + n, k * n: k * n + n ] = torch.diag(mu.pow(k+1))
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            ia,ib = self.op_layer(NM, V, res, torch.diag_embed(res.squeeze())@MM,
+            try:
+                ia,ib = self.op_layer(NM, V.repeat(res.shape[0], 1, 1), res, torch.diag_embed(res.squeeze())@MM,
                                   solver_args={'eps': 1e-5, 'max_iters': 10_000} )
+            except SolverError:
+                pass
         a = torch.cat([torch.ones(self.nf, 1, 1), ia], dim=1)
         b = ib
         # B = torch.vander(mu, increasing=True)
