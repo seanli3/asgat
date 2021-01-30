@@ -481,7 +481,7 @@ class Filter(nn.Module):
 
     def agsp_filter_ARMA_cgrad(self, b, a, tol=1e-4, Tmax=200):
         # For stability, we will work with a shifted version of the Laplacian
-        M = 0.5 * self.G.lmax * torch.eye(self.G.n_vertices) - self.G.L
+        M = 0.5 * self.G.lmax * torch.eye(self.G.n_vertices, device=self.device) - self.G.L
         # M = self.G.L
         x = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
         b = L_mult(M, b, x, len(x.shape) >= 3)
