@@ -330,7 +330,7 @@ class Filter(nn.Module):
         signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
         tmpN = torch.arange(self.G.n_vertices)
         nf = self._kernel.out_channel
-        c = torch.zeros((self.G.n_vertices*nf, self.G.n_vertices))
+        c = torch.zeros((self.G.n_vertices*nf, self.G.n_vertices), device=self.device)
         for j in range(signal.shape[0]):
             V, H, _ = self.lanczos_seq(
                 self.G.L,
@@ -471,7 +471,7 @@ class Filter(nn.Module):
                                   solver_args={'eps': 1e-5, 'max_iters': 10_000} )
             except SolverError:
                 pass
-        a = torch.cat([torch.ones(self.nf, 1, 1), ia], dim=1)
+        a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), ia], dim=1)
         b = ib
         # B = torch.vander(mu, increasing=True)
         # b, =self.lsqlin(B[:,:self.Kb+1]/(B[:, :self.Ka+1]@a), res)
