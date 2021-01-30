@@ -471,7 +471,8 @@ class Filter(nn.Module):
                                         torch.diag_embed(res.view(res.shape[0], -1))@MM,
                                         solver_args={'eps': 1e-5, 'max_iters': 10_000})
             except SolverError:
-                pass
+                ia = torch.rand(res.shape[0], self.Ka, 1)
+                ib = torch.rand(res.shape[0], self.Kb + 1, 1)
         a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), ia], dim=1)
         b = ib
         # B = torch.vander(mu, increasing=True)
