@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from benchmark.model.layers import GraphSpectralFilterLayer, AnalysisFilter
+from benchmark.model.layers import GraphSpectralFilterLayer
 import copy
 
 

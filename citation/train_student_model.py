@@ -1,4 +1,4 @@
-from model.layers import GraphSpectralFilterLayer, AnalysisFilter
+from model.layers import GraphSpectralFilterLayer
 import argparse
 from model.spectral_filter import Graph
 import torch
