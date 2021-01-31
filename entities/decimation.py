@@ -1,5 +1,5 @@
 import argparse
-from model.layers import GraphSpectralFilterLayer, AnalysisFilter
+from model.layers import GraphSpectralFilterLayer
 from model.spectral_filter import Graph
 import torch
 import torch.nn.functional as F
