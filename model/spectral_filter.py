@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
 import torch
-import numpy as np
 import torch.nn as nn
 from scipy.sparse import coo_matrix
 from scipy import sparse
 from torch_sparse import spspmm
-import cvxpy as cp
-from cvxpylayers.torch import CvxpyLayer
-import warnings
-from diffcp.cone_program import SolverError
 
 
 class Graph(object):
@@ -113,7 +108,7 @@ class Graph(object):
 
 
 class Filter(nn.Module):
-    def __init__(self, G, kernel, nf, device, order=32, method="chebyshev", sample_size=300, Kb=18, Ka=2, radius=0.85,
+    def __init__(self, G, nf, device, order=32, method="chebyshev", sample_size=300, Kb=18, Ka=2, radius=0.85,
                  Tmax=200):
         super(Filter, self).__init__()
         self.G = G
@@ -121,63 +116,41 @@ class Filter(nn.Module):
         self.device = device
         self.nf = nf
 
-        self._kernel = kernel
         self.order = order
-
-        if method.lower() == 'arma':
+        if method.lower() == 'chebyshev':
+            self.cheby_weight = nn.Parameter(torch.empty(self.order+1, self.nf, device=self.device))
+        if method.lower() == 'lanzcos':
+            self.lanzcos_weight = nn.Parameter(torch.empty(self.G.n_vertices, self.order, self.nf, device=self.device))
+            signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
+            V, H, _ = self.lanczos(
+                self.G.L,
+                self.order,
+                signal
+            )
+            Eh, Uh = torch.symeig(H, eigenvectors=True)
+            Eh[Eh < 0] = 0
+            self.V = torch.matmul(V, Uh)
+        elif method.lower() == 'arma':
             self.Ka = Ka
             self.Kb = Kb
             self.Tmax = Tmax
             self.sample_size = sample_size
+            self.ia = nn.Parameter(torch.empty(self.nf, Ka, 1, device=self.device))
+            self.ib = nn.Parameter(torch.empty(self.nf, Kb + 1, 1, device=self.device))
 
-            _NM = cp.Parameter((sample_size, Kb + 1))
-            # _muMM = cp.Parameter((mu.shape[0], Ka))
-            _V = cp.Parameter((sample_size, Ka))
-            _res = cp.Parameter((sample_size, 1))
-            _resDiag = cp.Parameter((sample_size, Ka))
-            _ia = cp.Variable((Ka, 1))
-            _ib = cp.Variable((Kb + 1, 1))
-            _muMM = cp.Variable((sample_size, 1))
-            objective1 = cp.Minimize(cp.norm(_NM @ _ib - _resDiag @ _ia - _res))
-            constraints1 = [cp.max(cp.abs(_V @ _ia)) <= radius]
-            prob1 = cp.Problem(objective1, constraints1)
-            assert prob1.is_dpp()
-            self.op_layer = CvxpyLayer(prob1, parameters=[_NM, _V, _res, _resDiag], variables=[_ia, _ib])
+    def reset_parameters(self):
+        if self.method.lower() == 'chebyshev':
+            nn.init.xavier_normal_(self.cheby_weight)
+        elif self.method.lower() == 'lanzcos':
+            nn.init.xavier_normal_(self.lanzcos_weight)
+        elif self.method.lower() == 'arma':
+            nn.init.xavier_normal_(self.ia)
+            nn.init.xavier_normal_(self.ib)
 
-            _C = cp.Parameter((sample_size, Kb + 1))
-            _d = cp.Parameter((sample_size, 1))
-            _x = cp.Variable((Kb + 1, 1))
-            objective2 = cp.Minimize(0.5 * cp.power(cp.norm(_C @ _x - _d), 2))
-            constraints2 = []
-            prob2 = cp.Problem(objective2, constraints2)
-            assert prob2.is_dpp()
-            self.lsqlin = CvxpyLayer(prob2, parameters=[_C, _d], variables=[_x])
-
-    def evaluate(self, x):
-        y = self._kernel(x)
-        return y
-
-    def compute_cheby_coeff(self, m: int = 32, N: int = None) -> torch.Tensor:
-        if not N:
-            N = m + 1
-
-        a_arange = [0, self.G.lmax]
-
-        a1 = (a_arange[1] - a_arange[0]) / 2
-        a2 = (a_arange[1] + a_arange[0]) / 2
-
-        tmpN = torch.arange(N, device=self.device)
-        num = torch.cos(np.pi * (tmpN + 0.5) / N)
-        c = 2. / N * torch.cos(np.pi * tmpN.view(-1,1) * (tmpN + 0.5) / N).mm(self._kernel(a1 * num + a2))
-
-        return c
-
-    def cheby_op(self, c: torch.Tensor) -> torch.Tensor:
+    def cheby_op(self) -> torch.Tensor:
+        c = self.cheby_weight
         G = self.G
         M = c.shape[0]
-
-        if M < 2:
-            raise TypeError("The coefficients have an invalid shape")
 
         # thanks to that, we can also have 1d signal.
 
@@ -206,20 +179,10 @@ class Filter(nn.Module):
 
         return r
 
-    def lanczos_op(self, order=16):
+    def lanczos_op(self):
         signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
-        V, H, _ = self.lanczos(
-            self.G.L,
-            order,
-            signal
-        )
-        Eh, Uh = torch.symeig(H, eigenvectors=True)
-        Eh[Eh < 0] = 0
-        V = torch.matmul(V, Uh)
-        nf = self._kernel.out_channel
-        fe = self._kernel(Eh)
-        c = V.matmul(fe.view(Eh.shape[0], Eh.shape[1], nf) * V.permute(0, 2, 1).matmul(signal))
-        return c.view(self.G.n_vertices, self.G.n_vertices*nf).T
+        c = self.V.matmul(self.lanzcos_weight * self.V.permute(0, 2, 1).matmul(signal))
+        return c.view(self.G.n_vertices, self.G.n_vertices*self.nf).T
 
     def lanczos(self, A, order, x):
         Z, N, M = x.shape
@@ -273,78 +236,6 @@ class Filter(nn.Module):
 
         return V, H, orth
 
-    # deprecated
-    def lanczos_seq(self, A, order, x):
-        N, M = x.shape
-
-        # normalization
-        # q = torch.divide(x, kron(torch.ones((1, N)), torch.linalg.norm(x, axis=0)))
-        # q = x when x is kronecker
-        q = x
-
-        # initialization
-        hiv = torch.arange(0, order * M, order, device=self.device)
-        V = torch.zeros((N, M * order), device=self.device)
-        V[:, hiv] = q
-
-        H = torch.zeros((order + 1, M * order), device=self.device)
-        r = torch.matmul(A, q)
-        H[0, hiv] = torch.sum(q * r, axis=0)
-        # r -= (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) * q
-        # (kron(torch.ones((N, 1)), H[0, hiv].view(1, -1))) will always be all ones
-        r -= q
-        H[1, hiv] = torch.linalg.norm(r, axis=0)
-
-        orth = torch.zeros(order, device=self.device)
-        orth[0] = torch.linalg.norm(torch.matmul(V.T, V) - M)
-
-        for k in range(1, order):
-            if H.isnan().any() or H.isinf().any():
-                H = H[:k, :k]
-                V = V[:, :k]
-                orth = orth[:k]
-                return V, H, orth
-
-            H[k - 1, hiv + k] = H[k, hiv + k - 1]
-            v = q
-            q = r / (H[k - 1, k + hiv]).repeat(N, 1)
-            V[:, k + hiv] = q
-
-            r = torch.matmul(A, q)
-            r -= H[k - 1, k + hiv].repeat(N, 1) * v
-            H[k, k + hiv] = torch.sum(torch.multiply(q, r), axis=0)
-            r -= H[k, k + hiv].repeat(N, 1) * q
-
-            # The next line has to be checked
-            r -= torch.matmul(V, torch.matmul(V.T, r))  # full reorthogonalization
-            H[k + 1, k + hiv] = torch.linalg.norm(r, axis=0)
-            temp = torch.matmul(V.T, V) - M
-            orth[k] = torch.linalg.norm(temp)
-
-        H = H[:order, :order]
-
-        return V, H, orth
-
-    # deprecated
-    def lanczos_op_seq(self, order=16):
-        signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
-        tmpN = torch.arange(self.G.n_vertices)
-        nf = self._kernel.out_channel
-        c = torch.zeros((self.G.n_vertices*nf, self.G.n_vertices), device=self.device)
-        for j in range(signal.shape[0]):
-            V, H, _ = self.lanczos_seq(
-                self.G.L,
-                order,
-                signal[j]
-            )
-            Eh, Uh = torch.symeig(H, eigenvectors=True)
-            Eh[Eh < 0] = 0
-            V = torch.matmul(V, Uh)
-            fe = self._kernel(Eh)
-            for i in range(nf):
-                c[tmpN + i*self.G.n_vertices, j] = V.matmul(fe[:,i].view(-1, 1) * V.T.matmul(signal[j])).view(-1)
-        return c
-
     def forward(self) -> object:
         """
         Parameters
@@ -358,128 +249,15 @@ class Filter(nn.Module):
 
         # TODO: update Chebyshev implementation (after 2D filter banks).
         if self.method == "chebyshev":
-            c = self.compute_cheby_coeff(m=self.order)
-            s = self.cheby_op(c)
+            s = self.cheby_op()
         elif self.method == 'lanzcos':
-            s = self.lanczos_op(order=self.order)
+            s = self.lanczos_op()
         else:
-            b, a, _ = self.agsp_design_ARMA()
+            a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), self.ia], dim=1)
+            b = self.ib
             s = self.agsp_filter_ARMA_cgrad(b, a, Tmax=self.Tmax)
 
         return s
-
-    def localize(self, i, **kwargs):
-        s = torch.zeros(self.G.n_vertices)
-        s[i] = 1
-
-        return np.sqrt(self.G.n_vertices) * self.forward(s, **kwargs)
-
-    def estimate_frame_bounds(self, x=None):
-        if x is None:
-            x = torch.linspace(0, self.G.lmax, 1000)
-
-        sum_filters = torch.sum(self.evaluate(x) ** 2, dim=0)
-
-        return sum_filters.min(), sum_filters.max()
-
-    def complement(self, frame_bound=None):
-        def kernel(x):
-            y = self.evaluate(x)
-            y = torch.pow(y, 2)
-            y = torch.sum(y, dim=1)
-
-            if frame_bound is None:
-                bound = y.max()
-            elif y.max() > frame_bound:
-                raise ValueError('The chosen bound is not feasible. '
-                                 'Choose at least {}.'.format(y.max()))
-            else:
-                bound = frame_bound
-
-            return torch.sqrt(bound - y)
-
-        return Filter(self.G, kernel)
-
-    def inverse(self):
-        A, _ = self.estimate_frame_bounds()
-        if A == 0:
-            raise ValueError('The filter bank is not invertible as it is not '
-                             'a frame (lower frame bound A=0).')
-
-        def kernel(g, i, x):
-            y = g.evaluate(x).T
-            z = torch.pinverse(y.view(-1, 1)).view(-1)
-            return z[:, i]  # Return one filter.
-
-        return Filter(self.G, kernel)
-
-    def plot(self, eigenvalues=None, sum=None, title=None,
-             ax=None, **kwargs):
-        import matplotlib.pyplot as plt
-
-        fig, ax = plt.subplots()
-        x = torch.linspace(torch.min(self.G.e), self.G.lmax, self.order).detach()
-        y = self.evaluate(x).T.detach()
-        x = x.cpu()
-        y = y.cpu()
-        lines = ax.plot(x, y)
-
-        if len(y.shape) == 2:
-            for i in range(y.shape[1]):
-                ax.plot(x, y[:, i], '.')
-        else:
-            ax.plot(x, y, '.')
-        if sum:
-            ax.plot(x, np.sum(y ** 2, 1), '.')
-
-        # TODO: plot highlighted eigenvalues
-        if sum:
-            line_sum, = ax.plot(x, np.sum(y ** 2, 1), 'k', **kwargs)
-
-        ax.set_xlabel(r"$\lambda$: laplacian's eigenvalues / graph frequencies")
-        ax.set_ylabel(r'$\hat{g}(\lambda)$: filter response')
-        plt.show()
-
-    def agsp_design_ARMA(self):
-        l = torch.linspace(0, self.G.lmax, self.sample_size, device=self.device)
-        mu = self.G.lmax / 2 - l
-        if mu.shape[0] == 1:
-            mu = mu.T
-        res = self._kernel(mu.view(-1, 1)).T.view(-1, mu.shape[0], 1)
-        NM = torch.zeros(res.shape[0], res.shape[1], self.Kb + 1, device=self.device)
-        NM[:, :, 0] = 1
-        for k in range(1, self.Kb + 1):
-            NM[:, :, k] = NM[:, :, k - 1]*mu
-
-        MM = torch.zeros(mu.shape[0], self.Ka, device=self.device)
-        MM[:, 0] = mu
-        for k in range(1, self.Ka):
-            MM[:, k] = MM[:, k - 1] * mu
-
-        n = mu.numel()
-        V = torch.zeros(n, self.Ka, device=self.device)
-        for k in range(self.Ka):
-            V[:, k] = mu.pow(k+1)
-
-        C1 = torch.zeros(n*self.Ka, n*self.Ka, device=self.device)
-        for k in range(self.Ka):
-            C1[k * n: k * n + n, k * n: k * n + n ] = torch.diag(mu.pow(k+1))
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            try:
-                ia,ib = self.op_layer(NM, V.repeat(res.shape[0], 1, 1), res,
-                                        torch.diag_embed(res.view(res.shape[0], -1))@MM,
-                                        solver_args={'eps': 1e-5, 'max_iters': 10_000})
-            except SolverError:
-                ia = torch.rand(res.shape[0], self.Ka, 1, device=self.device)
-                ib = torch.rand(res.shape[0], self.Kb + 1, 1, device=self.device)
-        a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), ia], dim=1)
-        b = ib
-        # B = torch.vander(mu, increasing=True)
-        # b, =self.lsqlin(B[:,:self.Kb+1]/(B[:, :self.Ka+1]@a), res)
-        # rARMA = polyval(b.flip(1), mu)/polyval(a.flip(1), mu)
-
-        return b, a, None
 
     def agsp_filter_ARMA_cgrad(self, b, a, tol=1e-4, Tmax=200):
         # For stability, we will work with a shifted version of the Laplacian
@@ -524,22 +302,10 @@ class Filter(nn.Module):
         return y.view(self.nf * self.G.n_vertices, self.G.n_vertices)
 
 
-def _sum_ind(ind1, ind2):
-    ind = ind1.view(-1).repeat(ind2.size(), 1).T + ind2.view(-1)
-    return ind.view(-1)
-
-
 def kron(m1, m2):
     matrix1 = m1 if len(m1.shape) ==2 else m1.view(-1, 1)
     matrix2 = m2 if len(m2.shape) ==2 else m2.view(-1, 1)
     return torch.ger(matrix1.view(-1), matrix2.view(-1)).reshape(*(matrix1.size() + matrix2.size())).permute([0, 2, 1, 3]).reshape(matrix1.size(0) * matrix2.size(0), matrix1.size(1) * matrix2.size(1))
-
-def make_features (x, order):
-    return torch.stack([x ** i for i in range (order-1,-1, -1)], len(x.shape))
-
-def polyval (p, x):
-    N = p.shape[1] if len(p.shape) > 2 else p.shape[0]
-    return make_features(x, N)@p
 
 def L_mult(L, coef, x, expand=False):
     dims = [-1, 1, 1, 1] if expand else [-1, 1, 1]
