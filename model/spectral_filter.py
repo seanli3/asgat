@@ -255,7 +255,7 @@ class Filter(nn.Module):
         else:
             a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), self.ia], dim=1)
             b = self.ib
-            s = self.agsp_filter_ARMA_cgrad(b, a, Tmax=self.Tmax)
+            s = self.agsp_filter_ARMA(b, a, Tmax=self.Tmax)
 
         return s
 
@@ -301,6 +301,36 @@ class Filter(nn.Module):
                 rsold = rsnew
         return y.view(self.nf * self.G.n_vertices, self.G.n_vertices)
 
+
+    def agsp_filter_ARMA(self, b, a, tol=1e-4, Tmax=200):
+        # For stability, we will work with a shifted version of the Laplacian
+        M = 0.5 * self.G.lmax * torch.eye(self.G.n_vertices, device=self.device) - self.G.L
+        # M = self.G.L
+        x = torch.eye(self.G.n_vertices, device=self.device)
+
+        a = a/a[:, 0, :]
+        b = b/a[:, 0, :]
+
+        y = torch.zeros(self.nf, self.G.n_vertices, self.G.n_vertices, Tmax, device=self.device)
+        for t in range(Tmax):
+            y[:, :, :, 0] = 0
+            for k in range(self.Ka):
+                if t > 0:
+                    if k == 0:
+                        z = y[:, :, :, t-1]
+                    z = M.matmul(z)
+                    y[:, :, :, t] = y[:, :, :, t] - a[:, k+1, :]*z
+
+            z = x
+            for k in range(-1, self.Kb):
+                y[:, :, :, t] = y[:, :, :, t] + b[:, k+1, :]*z
+                z = M.matmul(z)
+
+            if t > 0 and (torch.norm(y[:, :, :, t] - y[:, :, :, t-1])/torch.norm(y[:, :, :, t-1]) < tol).any():
+                break
+
+        y = y[:, :, :, t]
+        return y.view(self.nf * self.G.n_vertices, self.G.n_vertices)
 
 def kron(m1, m2):
     matrix1 = m1 if len(m1.shape) ==2 else m1.view(-1, 1)

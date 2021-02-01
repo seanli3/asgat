@@ -115,8 +115,8 @@ parameters=[
     {'name': 'seed', 'type': 'fixed', 'value': 729},
     {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.0001, 0.1], "log_scale": True},
     {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 0.005], "log_scale": True},
-    {'name': 'patience', 'type': 'fixed', 'value': 20},
-    {'name': 'hidden', 'type': 'range', "bounds": [16, 128], "log_scale": True},
+    {'name': 'patience', 'type': 'fixed', 'value': 100},
+    {'name': 'hidden', 'type': 'range', "bounds": [64, 888], "log_scale": True},
     {'name': 'heads', 'type': 'range', "bounds": [2, 18]},
     {'name': 'dropout', "type": "range", "bounds": [0.1, 0.9]},
     {'name': 'self_loop', "type": "choice", "values": [False ,True]},
@@ -139,7 +139,7 @@ elif arg.method.lower() == 'arma':
         {'name': 'order', 'type': 'fixed', "value": 12},
         {'name': 'Kb', 'type': 'range', "bounds": [1, 20]},
         {'name': 'Ka', 'type': 'range', "bounds": [1, 20]},
-        {'name': 'Tmax', 'type': 'range', "bounds": [50, 2000], "log_scale": True},
+        {'name': 'Tmax', 'type': 'range', "bounds": [4, 50]},
     ]
 if arg.threshold:
     parameters += [

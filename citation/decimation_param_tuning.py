@@ -137,7 +137,7 @@ elif arg.method.lower() == 'arma':
         {'name': 'order', 'type': 'fixed', "value": 12},
         {'name': 'Kb', 'type': 'range', "bounds": [1, 20]},
         {'name': 'Ka', 'type': 'range', "bounds": [1, 20]},
-        {'name': 'Tmax', 'type': 'range', "bounds": [50, 2000], "log_scale": True},
+        {'name': 'Tmax', 'type': 'range', "bounds": [4, 50], "log_scale": True},
     ]
 if arg.threshold:
     parameters += [
