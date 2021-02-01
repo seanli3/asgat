@@ -308,8 +308,8 @@ class Filter(nn.Module):
         # M = self.G.L
         x = torch.eye(self.G.n_vertices, device=self.device)
 
-        a = a/a[:, 0, :]
-        b = b/a[:, 0, :]
+        a = a/a[:, 0, :].view(-1, 1, 1)
+        b = b/a[:, 0, :].view(-1, 1, 1)
 
         y = torch.zeros(self.nf, self.G.n_vertices, self.G.n_vertices, Tmax, device=self.device)
         for t in range(Tmax):
@@ -319,11 +319,11 @@ class Filter(nn.Module):
                     if k == 0:
                         z = y[:, :, :, t-1]
                     z = M.matmul(z)
-                    y[:, :, :, t] = y[:, :, :, t] - a[:, k+1, :]*z
+                    y[:, :, :, t] = y[:, :, :, t] - a[:, k+1, :].view(-1, 1, 1)*z
 
             z = x
             for k in range(-1, self.Kb):
-                y[:, :, :, t] = y[:, :, :, t] + b[:, k+1, :]*z
+                y[:, :, :, t] = y[:, :, :, t] + b[:, k+1, :].view(-1, 1, 1)*z
                 z = M.matmul(z)
 
             if t > 0 and (torch.norm(y[:, :, :, t] - y[:, :, :, t-1])/torch.norm(y[:, :, :, t-1]) < tol).any():
