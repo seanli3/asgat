@@ -255,7 +255,7 @@ class Filter(nn.Module):
         else:
             a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), self.ia], dim=1)
             b = self.ib
-            s = self.agsp_filter_ARMA(b, a, Tmax=self.Tmax)
+            s = self.agsp_filter_ARMA_cgrad(b, a, Tmax=self.Tmax)
 
         return s
 
