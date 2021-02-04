@@ -13,7 +13,9 @@ class AnalysisFilter(nn.Module):
         self.out_channel = out_channel
         self.layers = nn.Sequential(nn.Linear(1, 32),
                                     nn.ReLU(inplace=True),
-                                    nn.Linear(32, 32),
+                                    nn.Linear(32, 64),
+                                    nn.ReLU(inplace=True),
+                                    nn.Linear(64, 32),
                                     nn.ReLU(inplace=True),
                                     nn.Linear(32, out_channel),
                                     nn.ReLU(inplace=True))
