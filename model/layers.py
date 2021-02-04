@@ -3,6 +3,30 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .spectral_filter import Filter
 from torch_sparse import spmm
+import pygsp
+
+
+class AnalysisFilter(nn.Module):
+    def __init__(self, out_channel, device):
+        super(AnalysisFilter, self).__init__()
+        self.device=device
+        self.out_channel = out_channel
+        self.layers = nn.Sequential(nn.Linear(1, 32),
+                                    nn.ReLU(inplace=True),
+                                    nn.Linear(32, 32),
+                                    nn.ReLU(inplace=True),
+                                    nn.Linear(32, out_channel),
+                                    nn.ReLU(inplace=True))
+        self.to(device)
+
+    def reset_parameters(self):
+        for layer in self.layers:
+            if hasattr(layer, 'reset_parameters'):
+                layer.reset_parameters()
+        self.to(self.device)
+
+    def forward(self, x):
+        return self.layers(x.view(-1,1))
 
 
 class GraphSpectralFilterLayer(nn.Module):
@@ -38,7 +62,8 @@ class GraphSpectralFilterLayer(nn.Module):
         self.N = G.n_vertices
         self.filter_type = filter
         self.filter = Filter(self.G, nf=self.out_channels, device=self.device, order=self.order,
-                             method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax)
+                             method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax,
+                             kernel=AnalysisFilter(self.out_channels, device=self.device) if self.method.lower() =='exact' else None)
         self.concat = concat
 
         self.to(self.device)
@@ -50,10 +75,40 @@ class GraphSpectralFilterLayer(nn.Module):
         # for layer in self.mlp:
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
+
+        if self.method.lower() =='exact':
+            self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
+        else:
+            self.filter_kernel = None
         self.filter = Filter(self.G, nf=self.out_channels, device=self.device, order=self.order,
-                             method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax)
+                             method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax, kernel=self.filter_kernel)
         self.filter.reset_parameters()
 
+        if self.pre_training:
+            if self.out_channels > 1:
+                itersine = pygsp.filters.Itersine(self.G, self.out_channels)
+            else:
+                itersine = pygsp.filters.Heat(self.G, self.out_channels)
+            k_optimizer = torch.optim.Adam(self.filter_kernel.parameters(), lr=5e-4, weight_decay=1e-5)
+            x = torch.rand(1000, device=self.device).view(-1, 1) * 2
+            y = torch.FloatTensor(itersine.evaluate(x.cpu().view(-1))).to(self.device).T
+            val_x = torch.rand(1000, device=self.device).view(-1, 1) * 2
+            val_y = torch.FloatTensor(itersine.evaluate(val_x.cpu().view(-1))).to(self.device).T
+            for _ in range(2000):
+                self.filter_kernel.train()
+                k_optimizer.zero_grad()
+                predictions = self.filter_kernel(x)
+                loss = F.mse_loss(input=predictions, target=y, reduction="mean")
+                # if _ % 100 == 0:
+                #     self.filter_kernel.eval()
+                #     val_predictions = self.filter_kernel(val_x)
+                #     val_loss = F.mse_loss(input=val_predictions, target=val_y, reduction="mean")
+                #     print(
+                #         'kernel training epoch {} loss {} validation loss {}'.format(_, str(loss.item()),
+                #                                                                      str(val_loss.item())))
+                #     self.filter_kernel.train()
+                loss.backward()
+                k_optimizer.step()
         self.to(self.device)
         self.linear.to(self.device)
 

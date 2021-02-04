@@ -15,6 +15,8 @@ class Graph(object):
         self._lmax = None
         self._dw = None
         self._lmax_method = None
+        self._e = None
+        self._U = None
 
         self.compute_laplacian(lap_type)
 
@@ -73,6 +75,22 @@ class Graph(object):
         return self._dw
 
     @property
+    def U(self):
+        if self.n_vertices > 1000:
+            raise NotImplementedError('Eigen-decomposition is not available for large graphs')
+        if self._U is None:
+            self._e, self._U = torch.symeig(self.L, eigenvectors=True)
+        return self._U
+
+    @property
+    def e(self):
+        if self.n_vertices > 1000:
+            raise NotImplementedError('Eigen-decomposition is not available for large graphs')
+        if self._e is None:
+            self._e, self._U = torch.symeig(self.L, eigenvectors=True)
+        return self._e
+
+    @property
     def lmax(self):
         if self._lmax is None:
             self.estimate_lmax()
@@ -108,8 +126,7 @@ class Graph(object):
 
 
 class Filter(nn.Module):
-    def __init__(self, G, nf, device, order=32, method="chebyshev", sample_size=300, Kb=18, Ka=2, radius=0.85,
-                 Tmax=200):
+    def __init__(self, G, nf, device, order=32, method="chebyshev", sample_size=300, Kb=18, Ka=2, Tmax=200, kernel=None):
         super(Filter, self).__init__()
         self.G = G
         self.method=method
@@ -137,6 +154,8 @@ class Filter(nn.Module):
             self.sample_size = sample_size
             self.ia = nn.Parameter(torch.empty(self.nf, Ka, 1, device=self.device))
             self.ib = nn.Parameter(torch.empty(self.nf, Kb + 1, 1, device=self.device))
+        elif method.lower() == 'exact':
+            self._kernel = kernel
 
     def reset_parameters(self):
         if self.method.lower() == 'chebyshev':
@@ -248,14 +267,19 @@ class Filter(nn.Module):
         """
 
         # TODO: update Chebyshev implementation (after 2D filter banks).
-        if self.method == "chebyshev":
+        if self.method.lower() == "chebyshev":
             s = self.cheby_op()
-        elif self.method == 'lanzcos':
+        elif self.method.lower() == 'lanzcos':
             s = self.lanczos_op()
-        else:
+        elif self.method.lower() == 'arma':
             a = torch.cat([torch.ones(self.nf, 1, 1, device=self.device), self.ia], dim=1)
             b = self.ib
             s = self.agsp_filter_ARMA_cgrad(b, a, Tmax=self.Tmax)
+        elif self.method.lower() == 'exact':
+            signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
+            s_hat = self.G.U.matmul(signal)
+            s_hat = s_hat.matmul(self._kernel(self.G.e).view(self.G.n_vertices, 1, self.nf)).permute(2, 0, 1)
+            s = self.G.U.matmul(s_hat).view(-1, self.G.n_vertices)
 
         return s
 
