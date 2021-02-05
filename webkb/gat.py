@@ -22,6 +22,7 @@ parser.add_argument('--dropout', type=float, default=0.6)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--heads', type=int, default=8)
 parser.add_argument('--output_heads', type=int, default=1)
+parser.add_argument('--self_loop', action='store_true')
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
@@ -69,6 +70,7 @@ permute_masks = None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
                                     permute_masks=permute_masks, split=args.split, lcc=args.lcc,
-                                    node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
+                                    self_loop=args.self_loop, node_feature_dropout=args.node_feature_dropout,
+                                    dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
