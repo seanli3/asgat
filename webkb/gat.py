@@ -26,7 +26,6 @@ parser.add_argument('--self_loop', action='store_true')
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
-parser.add_argument('--split', type=str, default='full')
 args = parser.parse_args()
 
 rseed(args.seed)
@@ -69,7 +68,7 @@ class Net(torch.nn.Module):
 permute_masks = None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks, split=args.split, lcc=args.lcc,
+                                    permute_masks=permute_masks, lcc=args.lcc,
                                     self_loop=args.self_loop, node_feature_dropout=args.node_feature_dropout,
                                     dissimilar_t=args.dissimilar_t)
 
