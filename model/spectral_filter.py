@@ -337,23 +337,24 @@ class Filter(nn.Module):
 
         y = torch.zeros(self.nf, self.G.n_vertices, self.G.n_vertices, Tmax, device=self.device)
         for t in range(Tmax):
-            y[:, :, :, 0] = 0
+            old_y = torch.zeros(self.nf, self.G.n_vertices, self.G.n_vertices, device=self.device)
             for k in range(self.Ka):
                 if t > 0:
                     if k == 0:
-                        z = y[:, :, :, t-1]
+                        z = old_y
                     z = M.matmul(z)
-                    y[:, :, :, t] = y[:, :, :, t] - a[:, k+1, :].view(-1, 1, 1)*z
+                    y = y - a[:, k+1, :].view(-1, 1, 1)*z
 
             z = x
             for k in range(-1, self.Kb):
-                y[:, :, :, t] = y[:, :, :, t] + b[:, k+1, :].view(-1, 1, 1)*z
+                y = y + b[:, k+1, :].view(-1, 1, 1)*z
                 z = M.matmul(z)
 
-            if t > 0 and (torch.norm(y[:, :, :, t] - y[:, :, :, t-1])/torch.norm(y[:, :, :, t-1]) < tol).any():
+            old_y = y
+
+            if t > 0 and (torch.norm(y - old_y)/torch.norm(old_y) < tol).any():
                 break
 
-        y = y[:, :, :, t]
         return y.view(self.nf * self.G.n_vertices, self.G.n_vertices)
 
 def kron(m1, m2):
