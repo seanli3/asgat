@@ -335,7 +335,7 @@ class Filter(nn.Module):
         a = a/a[:, 0, :].view(-1, 1, 1)
         b = b/a[:, 0, :].view(-1, 1, 1)
 
-        y = torch.zeros(self.nf, self.G.n_vertices, self.G.n_vertices, Tmax, device=self.device)
+        y = torch.zeros(self.nf, self.G.n_vertices, self.G.n_vertices, device=self.device)
         for t in range(Tmax):
             old_y = torch.zeros(self.nf, self.G.n_vertices, self.G.n_vertices, device=self.device)
             for k in range(self.Ka):
