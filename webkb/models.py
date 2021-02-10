@@ -6,7 +6,7 @@ import copy
 
 class GraphDecimation(nn.Module):
     def __init__(self, G, nfeat, nhid, nclass, feature_dropout, spectrum_dropout, alpha, nheads,
-                 order, attention_dropout, kernel=None):
+                 order, attention_dropout, kernel=None, tau=0.2):
         super(GraphDecimation, self).__init__()
         self.G = G
         self.G.estimate_lmax()
@@ -15,12 +15,12 @@ class GraphDecimation(nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, nfeat, nhid, dropout=attention_dropout,
                                                  out_channels=nheads,
                                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                 kernel=kernel, order=order)
+                                                 kernel=kernel, order=order, tau=tau)
 
         self.synthesis = GraphSpectralFilterLayer(self.G, nhid * nheads, nclass, dropout=attention_dropout,
                                                   out_channels=1,
                                                   spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                  kernel=None, order=order)
+                                                  kernel=None, order=order, tau=tau)
 
     def forward(self, x):
         x = self.feature_dropout(x)
@@ -32,7 +32,7 @@ class GraphDecimation(nn.Module):
 
 class DeepGraphDecimation(nn.Module):
     def __init__(self, G, nfeat, nhid, nclass, feature_dropout, spectrum_dropout, alpha, nheads,
-                 order, attention_dropout, kernel=None, layers=0):
+                 order, attention_dropout, kernel=None, layers=0, tau=0.2):
         super(DeepGraphDecimation, self).__init__()
         self.G = G
         self.G.estimate_lmax()
@@ -42,7 +42,7 @@ class DeepGraphDecimation(nn.Module):
                                                  dropout=attention_dropout,
                                                  out_channels=nheads,
                                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                                 kernel=kernel, order=order)
+                                                 kernel=kernel, order=order, tau=tau)
 
         self.layers = []
         for _ in range(layers):
@@ -52,11 +52,11 @@ class DeepGraphDecimation(nn.Module):
             self.layers.append(GraphSpectralFilterLayer(self.G, nhid * nheads, nhid, dropout=0,
                                  out_channels=nheads,
                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
-                                 kernel=k, order=order))
+                                 kernel=k, order=order, tau=tau))
 
 
         self.synthesis = GraphSpectralFilterLayer(self.G, nhid * nheads, nclass, dropout=0,
-                                                  out_channels=1,
+                                                  out_channels=1, tau=tau,
                                                   spectrum_dropout=spectrum_dropout, alpha=alpha,
                                                   kernel=None, order=order)
 
@@ -73,14 +73,14 @@ class DeepGraphDecimation(nn.Module):
 
 class GraphDecimationMlp(nn.Module):
     def __init__(self, G, nfeat, nhid, nclass, feature_dropout, spectrum_dropout, mlp_hidden, alpha, nheads,
-                 order, attention_dropout, mlp_dropout, kernel=None):
+                 order, attention_dropout, mlp_dropout, kernel=None, tau=0.2):
         super(GraphDecimationMlp, self).__init__()
         self.G = G
         self.G.estimate_lmax()
         self.feature_dropout = nn.Dropout(p=feature_dropout)
 
         self.analysis = GraphSpectralFilterLayer(self.G, nfeat, nhid, dropout=attention_dropout,
-                                                 out_channels=nheads,
+                                                 out_channels=nheads, tau=tau,
                                                  spectrum_dropout=spectrum_dropout, alpha=alpha,
                                                  kernel=kernel, order=order)
 

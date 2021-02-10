@@ -30,6 +30,7 @@ parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--filter', type=str, default='analysis')
 parser.add_argument('--dissimilar_t', type=float, default=1)
+parser.add_argument('--tau', type=float, default=0.2)
 args = parser.parse_args()
 
 print(args)
@@ -60,7 +61,7 @@ class Net(torch.nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 alpha=args.alpha, order=args.order)
+                                                 alpha=args.alpha, order=args.order, tau=args.tau)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
         #                             nn.Linear(128, 64),
@@ -75,7 +76,7 @@ class Net(torch.nn.Module):
         self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes, filter=args.filter,
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
                                                   out_channels=1, alpha=args.alpha, pre_training=False,
-                                                  order=args.order)
+                                                  order=args.order, tau=args.tau)
 
     def reset_parameters(self):
         self.analysis.reset_parameters()

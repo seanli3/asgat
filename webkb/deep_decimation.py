@@ -20,6 +20,7 @@ parser.add_argument('--patience', type=int, default=100)
 parser.add_argument('--hidden', type=int, default=83)
 parser.add_argument('--heads', type=int, default=19)
 parser.add_argument('--dropout', type=float, default=0.5)
+parser.add_argument('--tau', type=float, default=0.2)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--pre_training', action='store_true')
 parser.add_argument('--cuda', action='store_true')
@@ -56,18 +57,18 @@ class Net(torch.nn.Module):
         self.G.estimate_lmax()
 
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
-                                                 dropout=args.dropout, out_channels=args.heads,
+                                                 dropout=args.dropout, out_channels=args.heads, tau=args.tau,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
                                                  alpha=args.alpha, order=args.order)
 
-        self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes,
+        self.synthesis = GraphSpectralFilterLayer(self.G, args.hidden * args.heads, dataset.num_classes, tau=args.tau,
                                                   device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
                                                   out_channels=1, alpha=args.alpha, pre_training=False,
                                                   order=args.order)
 
         self.layers = []
         for _ in range(args.layers):
-            self.layers.append(GraphSpectralFilterLayer(self.G, args.hidden * args.heads, args.hidden,
+            self.layers.append(GraphSpectralFilterLayer(self.G, args.hidden * args.heads, args.hidden, tau=args.tau,
                                                         device='cuda' if args.cuda else 'cpu', dropout=args.dropout,
                                                         out_channels=args.heads, alpha=args.alpha,
                                                         pre_training=args.pre_training,

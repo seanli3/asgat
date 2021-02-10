@@ -36,6 +36,7 @@ parser.add_argument('--filter', type=str, default='analysis')
 parser.add_argument('--split', type=str, default='full')
 parser.add_argument('--method', type=str, default='chebyshev')
 parser.add_argument('--dissimilar_t', type=float, default=1)
+parser.add_argument('--tau', type=float, default=0.2)
 parser.add_argument('--threshold', type=float, default=None)
 parser.add_argument('--Kb', type=int, default=18)
 parser.add_argument('--Ka', type=int, default=2)
@@ -66,7 +67,7 @@ class Net(torch.nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden, method=args.method,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 order=args.order, concat=True, k=args.k,
+                                                 order=args.order, concat=True, k=args.k, tau=args.tau,
                                                  threshold=args.threshold, Kb=args.Kb, Ka=args.Ka, Tmax=args.Tmax)
         # self.mlp = nn.Sequential(nn.Linear(args.hidden * args.heads, 128),
         #                             nn.ReLU(inplace=True),
@@ -83,7 +84,7 @@ class Net(torch.nn.Module):
                                                   method=args.method, dropout=args.dropout,
                                                   out_channels=args.output_heads, filter=args.filter,
                                                   pre_training=False, device='cuda' if args.cuda else 'cpu',
-                                                  order=args.order, concat=False, k=args.k,
+                                                  order=args.order, concat=False, k=args.k, tau=args.tau,
                                                   threshold=args.threshold, Kb=args.Kb, Ka=args.Ka, Tmax=args.Tmax)
         if args.cuda:
             self.to('cuda')

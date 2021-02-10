@@ -23,6 +23,23 @@ class GaussFilter(nn.Module):
         return self.gains.mul(torch.exp(-self.amps*(x.view(-1, 1) - self.centers).pow(2)/self.bandwidths.pow(2)))
 
 
+class HeatFilter(nn.Module):
+    def __init__(self, out_channels, lmax, device, tau=0.2):
+        super(HeatFilter, self).__init__()
+        self.device = device
+        self.lmax = lmax
+        # self.t = nn.Parameter(torch.empty(1, out_channels, device=self.device))
+        self.t = tau
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        # nn.init.uniform_(self.t)
+        pass
+
+    def forward(self, x):
+        return torch.exp(-self.t * x.view(-1,1) / self.lmax)
+
+
 class AnalysisFilter(nn.Module):
     def __init__(self, out_channel, device):
         super(AnalysisFilter, self).__init__()
@@ -55,10 +72,11 @@ class GraphSpectralFilterLayer(nn.Module):
 
     def __init__(self, G, in_features, out_features, dropout, out_channels, device="cpu", concat=True,
                  order=16, pre_training=False, filter="analysis", method="chebyshev", k=5, threshold=None,
-                 Kb=18, Ka=2, Tmax=200):
+                 Kb=18, Ka=2, Tmax=200, tau=0.2):
         super(GraphSpectralFilterLayer, self).__init__()
         self.G = G
         self.k = k
+        self.tau = tau
         self.threshold = threshold
         self.Kb = Kb
         self.Ka = Ka
@@ -80,7 +98,11 @@ class GraphSpectralFilterLayer(nn.Module):
         self.order = order
         self.N = G.n_vertices
         self.filter_type = filter
-        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
+        if self.filter_type == 'analysis':
+            self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device)
+        else:
+            self.filter_kernel = HeatFilter(out_channels=self.out_channels, device=self.device, lmax=self.G.lmax,
+                                            tau=self.tau)
         self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order,
                              method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax)
         self.concat = concat
@@ -95,7 +117,10 @@ class GraphSpectralFilterLayer(nn.Module):
         # for layer in self.mlp:
         #     if hasattr(layer, 'reset_parameters'):
         #         layer.reset_parameters()
-        self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device) if self.filter_type == 'analysis' else GaussFilter(k=self.out_channels)
+        if self.filter_type == 'analysis':
+            self.filter_kernel = AnalysisFilter(out_channel=self.out_channels, device=self.device)
+        else:
+            self.filter_kernel = HeatFilter(out_channels=self.out_channels, device=self.device, lmax=self.G.lmax, tau=self.tau)
         self.filter = Filter(self.G, self.filter_kernel, nf=self.out_channels, device=self.device, order=self.order,
                              method=self.method, Kb=self.Kb, Ka=self.Ka, Tmax=self.Tmax)
 

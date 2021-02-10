@@ -20,6 +20,8 @@ class Graph(object):
         self._lmax = None
         self._dw = None
         self._lmax_method = None
+        self._e = None
+        self._U = None
 
         self.compute_laplacian(lap_type)
 
@@ -83,6 +85,22 @@ class Graph(object):
             self.estimate_lmax()
         return self._lmax
 
+    @property
+    def U(self):
+        if self.n_vertices > 1000:
+            raise NotImplementedError('Eigen-decomposition is not available for large graphs')
+        if self._U is None:
+            self._e, self._U = torch.symeig(self.L, eigenvectors=True)
+        return self._U
+
+    @property
+    def e(self):
+        if self.n_vertices > 1000:
+            raise NotImplementedError('Eigen-decomposition is not available for large graphs')
+        if self._e is None:
+            self._e, self._U = torch.symeig(self.L, eigenvectors=True)
+        return self._e
+
     def estimate_lmax(self, method='lanczos'):
         if method == self._lmax_method:
             return
@@ -122,9 +140,10 @@ class Filter(nn.Module):
         self.nf = nf
 
         self._kernel = kernel
-        self.order = order
 
-        if method.lower() == 'arma':
+        if method.lower() == 'chebyshev' or method.lower() == 'lanzcos':
+            self.order = order
+        elif method.lower() == 'arma':
             self.Ka = Ka
             self.Kb = Kb
             self.Tmax = Tmax
@@ -357,15 +376,19 @@ class Filter(nn.Module):
         """
 
         # TODO: update Chebyshev implementation (after 2D filter banks).
-        if self.method == "chebyshev":
+        if self.method.lower() == "chebyshev":
             c = self.compute_cheby_coeff(m=self.order)
             s = self.cheby_op(c)
-        elif self.method == 'lanzcos':
+        elif self.method.lower() == 'lanzcos':
             s = self.lanczos_op(order=self.order)
-        else:
+        elif self.method.lower() == 'arma':
             b, a, _ = self.agsp_design_ARMA()
             s = self.agsp_filter_ARMA_cgrad(b, a, Tmax=self.Tmax)
-
+        elif self.method.lower() == 'exact':
+            signal = torch.eye(self.G.n_vertices, device=self.device).view(self.G.n_vertices, self.G.n_vertices, 1)
+            s_hat = self.G.U.matmul(signal)
+            s_hat = s_hat.matmul(self._kernel(self.G.e).view(self.G.n_vertices, 1, self.nf)).permute(2, 0, 1)
+            s = self.G.U.matmul(s_hat).view(-1, self.G.n_vertices)
         return s
 
     def localize(self, i, **kwargs):

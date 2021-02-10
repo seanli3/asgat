@@ -24,6 +24,7 @@ parser.add_argument('--random_splits', type=bool, default=False)
 parser.add_argument('--runs', type=int, default=1)
 parser.add_argument('--epochs', type=int, default=3000)
 parser.add_argument('--alpha', type=float, default=0.7709619178612326)
+parser.add_argument('--tau', type=float, default=0.2)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--weight_decay', type=float, default=7.530100210192558e-05)
@@ -70,7 +71,7 @@ class SingleNet(torch.nn.Module):
         self.analysis = GraphSpectralFilterLayer(self.G, dataset.num_node_features, args.hidden,
                                                  dropout=args.dropout, out_channels=args.heads, filter=args.filter,
                                                  pre_training=args.pre_training, device='cuda' if args.cuda else 'cpu',
-                                                 alpha=args.alpha, order=args.order)
+                                                 order=args.order, tau=args.tau)
 
         self.linear = torch.nn.Linear(args.hidden * args.heads, dataset.num_classes)
 

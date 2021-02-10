@@ -14,6 +14,7 @@ parser.add_argument('--trials', type=int, default=40)
 parser.add_argument('--split', type=str, default='full')
 parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--method', type=str, default='chebyshev')
+parser.add_argument('--filter', type=str, default='analysis')
 parser.add_argument('--threshold', action='store_true')
 arg = parser.parse_args()
 
@@ -55,7 +56,7 @@ def decimation(args):
                                                      pre_training=args['pre_training'], device='cuda' if args['cuda'] else 'cpu',
                                                      order=args['order'], concat=True, k=args['k'],
                                                      threshold=args['threshold'] if 'threshold' in args else None,
-                                                     Kb=args['Kb'], Ka=args['Ka'], Tmax=args['Tmax'])
+                                                     Kb=args['Kb'], Ka=args['Ka'], Tmax=args['Tmax'], tau=args['tau'])
             # self.mlp = nn.Sequential(nn.Linear(args['hidden * args['heads, 128),
             #                             nn.ReLU(inplace=True),
             #                             nn.Linear(128, 64),
@@ -71,7 +72,7 @@ def decimation(args):
                                      pre_training=args['pre_training'], device='cuda' if args['cuda'] else 'cpu',
                                      order=args['order'], concat=True, k=args['k'],
                                      threshold=args['threshold'] if 'threshold' in args else None,
-                                     Kb=args['Kb'], Ka=args['Ka'], Tmax=args['Tmax'])
+                                     Kb=args['Kb'], Ka=args['Ka'], Tmax=args['Tmax'], tau=args['tau'])
 
             if args['cuda']:
                 self.to('cuda')
@@ -125,7 +126,7 @@ parameters=[
     {'name': 'method', 'type': 'fixed', 'value': arg.method},
     {'name': 'edge_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
-    {'name': 'filter', 'type': 'fixed', 'value': 'analysis'},
+    {'name': 'filter', 'type': 'fixed', 'value': arg.filter},
 ]
 
 if arg.method.lower() == 'chebyshev' or arg.method.lower() == 'lanzcos':
@@ -147,6 +148,16 @@ if arg.threshold:
 else:
     parameters += [
         {'name': 'k', 'type': 'range', 'bounds': [3, 20]}
+    ]
+
+
+if arg.filter == 'heat':
+    parameters += [
+        {'name': 'tau', 'type': 'range', 'bounds': [0., 1.]}
+    ]
+else:
+    parameters += [
+        {'name': 'tau', 'type': 'fixed', 'value': 0.2}
     ]
 
 best_parameters, best_values, _, _ = optimize(
