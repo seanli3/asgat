@@ -11,14 +11,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--random_splits', type=bool, default=False)
 parser.add_argument('--runs', type=int, default=1)
-parser.add_argument('--epochs', type=int, default=200)
+parser.add_argument('--epochs', type=int, default=2000)
 parser.add_argument('--lr', type=float, default=0.01)
 parser.add_argument('--seed', type=int, default=729, help='Random seed.')
 parser.add_argument('--weight_decay', type=float, default=0.0005)
-parser.add_argument('--patience', type=int, default=10)
+parser.add_argument('--patience', type=int, default=100)
 parser.add_argument('--hidden', type=int, default=16)
 parser.add_argument('--dropout', type=float, default=0.5)
 parser.add_argument('--lcc', type=bool, default=False)
+parser.add_argument('--self_loop', type=bool, default=True)
 parser.add_argument('--normalize_features', type=bool, default=True)
 parser.add_argument('--num_hops', type=int, default=3)
 parser.add_argument('--edge_dropout', type=float, default=0)
@@ -62,7 +63,7 @@ class Net(torch.nn.Module):
 permute_masks = None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks, lcc=args.lcc,
+                                    permute_masks=permute_masks, lcc=args.lcc, self_loop=args.self_loop,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
