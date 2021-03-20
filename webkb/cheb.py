@@ -63,7 +63,7 @@ class Net(torch.nn.Module):
 permute_masks = None
 
 use_dataset = lambda : get_dataset(args.dataset, args.normalize_features, edge_dropout=args.edge_dropout,
-                                    permute_masks=permute_masks, lcc=args.lcc, self_loop=args.self_loop,
+                                    permute_masks=permute_masks, lcc=args.lcc, self_loop=args.self_loop, cuda=args.cuda,
                                     node_feature_dropout=args.node_feature_dropout, dissimilar_t=args.dissimilar_t)
 
 run(use_dataset, Net, args.runs, args.epochs, args.lr, args.weight_decay, args.patience)
