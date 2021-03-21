@@ -27,6 +27,7 @@ parser.add_argument('--skip_dropout', type=float, default=0.75)
 parser.add_argument('--edge_dropout', type=float, default=0)
 parser.add_argument('--node_feature_dropout', type=float, default=0)
 parser.add_argument('--dissimilar_t', type=float, default=1)
+parser.add_argument('--self_loop', action='store_false')
 parser.add_argument('--cuda', action='store_true')
 args = parser.parse_args()
 
