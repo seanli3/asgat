@@ -2,3 +2,6 @@
 /dist/
 /venv/
 /data/
+*.pyc
+*.out
+.lh/
