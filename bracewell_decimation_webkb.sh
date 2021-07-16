@@ -3,4 +3,5 @@ source ~/.bashrc
 
 conda activate /datastore/li243/.conda/env/asgat
 
-CUBLAS_WORKSPACE_CONFIG=:4096:8  python3 -m citation.decimation_param_tuning $LINE
+
+CUBLAS_WORKSPACE_CONFIG=:4096:8  python3 -m webkb.decimation_param_tuning $LINE

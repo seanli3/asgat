@@ -1,0 +1,2 @@
+--dataset=Cora --trials=80
+--dataset=CiteSeer --trials=80

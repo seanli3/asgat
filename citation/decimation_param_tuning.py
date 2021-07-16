@@ -15,12 +15,11 @@ parser.add_argument('--split', type=str, default='full')
 parser.add_argument('--lcc', type=bool, default=False)
 parser.add_argument('--method', type=str, default='chebyshev')
 parser.add_argument('--filter', type=str, default='analysis')
-parser.add_argument('--threshold', action='store_true')
 arg = parser.parse_args()
 
 args = {
     'dataset': arg.dataset,
-    'runs': 1,
+    'runs': 10,
     'cuda': True,
     'method': arg.method,
     'lcc': arg.lcc
@@ -55,7 +54,7 @@ def decimation(args):
                                                      dropout=args['dropout'], out_channels=args['heads'], filter=args['filter'],
                                                      pre_training=args['pre_training'], device='cuda' if args['cuda'] else 'cpu',
                                                      order=args['order'], concat=True, k=args['k'],
-                                                     threshold=args['threshold'] if 'threshold' in args else None,
+                                                     threshold=None,
                                                      Kb=args['Kb'], Ka=args['Ka'], Tmax=args['Tmax'], tau=args['tau'])
             # self.mlp = nn.Sequential(nn.Linear(args['hidden * args['heads, 128),
             #                             nn.ReLU(inplace=True),
@@ -71,7 +70,7 @@ def decimation(args):
                                      dropout=args['dropout'], out_channels=1, filter=args['filter'],
                                      pre_training=args['pre_training'], device='cuda' if args['cuda'] else 'cpu',
                                      order=args['order'], concat=True, k=args['k'],
-                                     threshold=args['threshold'] if 'threshold' in args else None,
+                                     threshold=None,
                                      Kb=args['Kb'], Ka=args['Ka'], Tmax=args['Tmax'], tau=args['tau'])
 
             if args['cuda']:
@@ -111,12 +110,12 @@ parameters=[
     {'name': 'runs', 'type': 'fixed', 'value': 1},
     {'name': 'epochs', 'type': 'fixed', 'value': 1000},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
-    {'name': 'lr', 'type': 'range', "type": "range", "bounds": [0.0001, 0.1], "log_scale": True},
-    {'name': 'weight_decay', 'type': 'range', "bounds": [0.000001, 0.005], "log_scale": True},
-    {'name': 'patience', 'type': 'fixed', 'value': 20},
-    {'name': 'hidden', 'type': 'range', "bounds": [16, 128], "log_scale": True},
-    {'name': 'heads', 'type': 'range', "bounds": [2, 18]},
-    {'name': 'dropout', "type": "range", "bounds": [0.1, 0.9]},
+    {'name': 'lr', 'type': 'range', "type": "choice", "values": [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.008, 0.01, 0.03, 0.05, 0.08, 0.1]},
+    {'name': 'weight_decay', 'type': 'choice', "values": [0.000001, 0.000005, 0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, 0.01]},
+    {'name': 'patience', 'type': 'fixed', 'value': 100},
+    {'name': 'hidden', 'type': 'choice', "values": [16, 32, 64, 88, 128, 256, 512]},
+    {'name': 'heads', 'type': 'range', "bounds": [1, 18]},
+    {'name': 'dropout', "type": "choice", "values": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
     {'name': 'self_loop', "type": "choice", "values": [False ,True]},
     {'name': 'normalize_features', "type": "fixed", "value": True},
     {'name': 'pre_training', "type": "fixed", "value": False},
@@ -127,27 +126,22 @@ parameters=[
     {'name': 'edge_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'node_feature_dropout', 'type': 'fixed', 'value': 0},
     {'name': 'filter', 'type': 'fixed', 'value': arg.filter},
+    {'name': 'k', 'type': 'range', 'bounds': [2, 18]}
 ]
 
 if arg.method.lower() == 'chebyshev' or arg.method.lower() == 'lanzcos':
     parameters += [
-        {'name': 'order', 'type': 'range', "bounds": [10, 20]},
+        {'name': 'order', 'type': 'choice', "values": [8, 10, 12, 14, 16, 18]},
+        {'name': 'Kb', 'type': 'fixed', "value": 1},
+        {'name': 'Ka', 'type': 'fixed', "value": 1},
+        {'name': 'Tmax', 'type': 'fixed', "value": 20},
     ]
 elif arg.method.lower() == 'arma':
     parameters += [
-        {'name': 'order', 'type': 'fixed', "value": 12},
+        {'name': 'order', 'type': 'fixed', "value": 16},
         {'name': 'Kb', 'type': 'range', "bounds": [1, 20]},
         {'name': 'Ka', 'type': 'range', "bounds": [1, 20]},
         {'name': 'Tmax', 'type': 'range', "bounds": [50, 2000], "log_scale": True},
-    ]
-if arg.threshold:
-    parameters += [
-        {'name': 'threshold', 'type': 'range', "bounds": [1e-5, 0.5], "log_scale": True},
-        {'name': 'k', 'type': 'fixed', 'value': 5}
-    ]
-else:
-    parameters += [
-        {'name': 'k', 'type': 'range', 'bounds': [3, 20]}
     ]
 
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=tuning_gpu
+#SBATCH --job-name=citation
 #SBATCH --time=128:00:00
 #SBATCH --mem=4GB
 #SBATCH --nodes=1

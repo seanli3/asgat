@@ -4,7 +4,7 @@
 #echo "===="
 
 #echo "Decimation"
-#python -m webkb.decimation --dataset=Cornell --alpha=0.2 --order=16 --dropout=0.3 --heads=6 --hidden=256 --lr=0.01 --patience=100 --seed=729 --epochs=2000 --runs=1 --weight_decay=0.0002
+CUBLAS_WORKSPACE_CONFIG=:4096:8 python -m webkb.decimation --dataset=Texas --order=16 --dropout=0.0 --heads=8 --hidden=128 --lr=0.01 --patience=100 --seed=729 --epochs=2000 --runs=1 --weight_decay=0.0002 --cuda --k=5
 #
 #echo "MLP"
 #python -m webkb.mlp --dataset=Cornell --dropout=0.3 --hidden1=128 --hidden2=64
@@ -84,8 +84,8 @@
 #echo "APPNP"
 #python -m webkb.appnp --dataset=Wisconsin --alpha=0.8 --K=8 --hidden=512
 
-echo "Chameleon"
-echo "===="
+# echo "Chameleon"
+# echo "===="
 
 #echo "MLP"
 #python -m webkb.mlp --dataset=Chameleon --dropout=0.5 --hidden1=256 --hidden2=128

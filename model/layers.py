@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .spectral_filter import Filter
-from torch_sparse import spmm
 import pygsp
 from math import sqrt
 
@@ -168,8 +167,7 @@ class GraphSpectralFilterLayer(nn.Module):
 
         attention = attention.softmax(1)
         attention = F.dropout(attention, self.dropout, training=self.training)
-        nzidx = attention.nonzero(as_tuple=True)
-        h_prime = spmm(nzidx, attention[nzidx], self.N*self.out_channels, self.N, h)
+        h_prime = attention.mm(h)
 
         if self.concat:
             return h_prime.view(self.out_channels, self.N, self.out_features).permute(1, 0, 2).reshape(self.N, -1), attention

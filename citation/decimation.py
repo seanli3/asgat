@@ -48,12 +48,16 @@ print(args)
 rseed(args.seed)
 nseed(args.seed)
 torch.manual_seed(args.seed)
+np.random.RandomState(args.seed)
+torch.backends.cudnn.deterministic=True
 
 args.cuda = args.cuda and torch.cuda.is_available()
 
 if args.cuda:
     print("-----------------------Training on CUDA-------------------------")
     torch.cuda.manual_seed(args.seed)
+
+torch.use_deterministic_algorithms(True)
 
 class Net(torch.nn.Module):
     def __init__(self, dataset):

@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from random import seed as rseed
 from numpy.random import seed as nseed
 from webkb import get_dataset, run
+import numpy as np
 
 
 def str2bool(v):
@@ -34,7 +35,7 @@ parser.add_argument('--output_heads', type=int, default=1)
 parser.add_argument('--dropout', type=float, default=0.6174883141474811)
 parser.add_argument('--normalize_features', type=str2bool, default=True)
 parser.add_argument('--lcc', type=bool, default=False)
-parser.add_argument('--pre_training', action='store_true')
+parser.add_argument('--pre_training', type=bool, default=False)
 parser.add_argument('--self_loop', action='store_true')
 parser.add_argument('--cuda', action='store_true')
 parser.add_argument('--order', type=int, default=15, help='Chebyshev polynomial order')
@@ -56,13 +57,18 @@ print(args)
 rseed(args.seed)
 nseed(args.seed)
 torch.manual_seed(args.seed)
+np.random.RandomState(args.seed)
+torch.backends.cudnn.deterministic=True
 
 args.cuda = args.cuda and torch.cuda.is_available()
-
 
 if args.cuda:
     print("-----------------------Training on CUDA-------------------------")
     torch.cuda.manual_seed(args.seed)
+
+
+torch.use_deterministic_algorithms(True)
+
 
 class Net(torch.nn.Module):
     def __init__(self, dataset):

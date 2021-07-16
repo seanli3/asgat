@@ -18,6 +18,8 @@ def run(use_dataset, Model, runs, epochs, lr, weight_decay, patience, logger=Non
         dataset = use_dataset()
         data = dataset[0]
         model = Model(dataset)
+        if cuda:
+            torch.cuda.synchronize()
 
         model.to(device).reset_parameters()
         optimizer = Adam(model.parameters(), lr=lr, weight_decay=weight_decay)

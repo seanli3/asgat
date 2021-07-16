@@ -189,8 +189,8 @@ def get_dataset(name, normalize_features=False, transform=None, edge_dropout=Non
 
     if cuda:
         dataset.data.to('cuda')
-        if hasattr(dataset, '__data_list__') and dataset.__data_list__:
-            for d in dataset.__data_list__:
+        if hasattr(dataset, '_data_list') and dataset._data_list:
+            for d in dataset._data_list:
                 d.to('cuda')
 
     return dataset
