@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=citation
-#SBATCH --time=128:00:00
+#SBATCH --job-name=cora
+#SBATCH --time=2:00:00
 #SBATCH --mem=4GB
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1

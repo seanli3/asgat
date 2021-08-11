@@ -1,2 +1,2 @@
---dataset=Cora --trials=80
---dataset=CiteSeer --trials=80
+--dataset=Cora --trials=100
+--dataset=CiteSeer --trials=100

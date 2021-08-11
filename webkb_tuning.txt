@@ -1,1 +1,1 @@
---dataset=Texas --trials=200 --method=chebyshev
+--dataset=Squirrel --trials=60 --method=chebyshev

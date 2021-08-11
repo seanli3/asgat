@@ -65,6 +65,9 @@ args.cuda = args.cuda and torch.cuda.is_available()
 if args.cuda:
     print("-----------------------Training on CUDA-------------------------")
     torch.cuda.manual_seed(args.seed)
+else:
+    torch.set_num_threads(16)
+    print("thread: ", torch.get_num_threads())
 
 
 torch.use_deterministic_algorithms(True)

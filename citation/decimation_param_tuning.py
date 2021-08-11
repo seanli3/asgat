@@ -8,6 +8,7 @@ from citation import get_dataset, run
 from ax import optimize
 import argparse
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', type=str, required=True)
 parser.add_argument('--trials', type=int, default=40)
@@ -20,11 +21,10 @@ arg = parser.parse_args()
 args = {
     'dataset': arg.dataset,
     'runs': 10,
-    'cuda': True,
+    'cuda': False,
     'method': arg.method,
     'lcc': arg.lcc
 }
-
 
 def decimation(args):
     print(args)
@@ -35,8 +35,11 @@ def decimation(args):
     args['cuda'] = args['cuda'] and torch.cuda.is_available()
 
 
-    # if args['cuda']:
-    #     print("-----------------------Training on CUDA-------------------------")
+    if args['cuda']:
+        print("-----------------------Training on CUDA-------------------------")
+    else:
+        torch.set_num_threads(16)
+        print("thread: ", torch.get_num_threads())
 
     if args['cuda']:
         torch.cuda.manual_seed(args['seed'])
@@ -107,7 +110,7 @@ def decimation(args):
 
 parameters=[
     {'name': 'dataset', 'type': 'fixed', 'value': args['dataset']},
-    {'name': 'runs', 'type': 'fixed', 'value': 1},
+    {'name': 'runs', 'type': 'fixed', 'value': args['runs']},
     {'name': 'epochs', 'type': 'fixed', 'value': 1000},
     {'name': 'seed', 'type': 'fixed', 'value': 729},
     {'name': 'lr', 'type': 'range', "type": "choice", "values": [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.008, 0.01, 0.03, 0.05, 0.08, 0.1]},

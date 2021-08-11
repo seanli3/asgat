@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=webkb
+#SBATCH --job-name=squirrel
 #SBATCH --time=24:00:00
 #SBATCH --mem=4GB
 #SBATCH --nodes=1

@@ -117,7 +117,7 @@ parameters=[
     {'name': 'lr', 'type': 'range', "type": "choice", "values": [0.0001, 0.0005, 0.001, 0.002, 0.005, 0.008, 0.01, 0.03, 0.05, 0.08, 0.1]},
     {'name': 'weight_decay', 'type': 'choice', "values": [0.000001, 0.000005, 0.00001, 0.00005, 0.0001, 0.0005, 0.001, 0.005, 0.01]},
     {'name': 'patience', 'type': 'fixed', 'value': 100},
-    {'name': 'hidden', 'type': 'choice', "values": [16, 32, 64, 88, 128, 256, 512, 1024]},
+    {'name': 'hidden', 'type': 'choice', "values": [16, 32, 64, 88, 128, 256, 512, 800, 1024]},
     {'name': 'heads', 'type': 'range', "bounds": [1, 18]},
     {'name': 'dropout', "type": "choice", "values": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]},
     {'name': 'self_loop', "type": "choice", "values": [False ,True]},
