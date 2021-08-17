@@ -1,1 +1,0 @@
---dataset=Squirrel --order=18 --Kb=1 --Ka=1 --dropout=0.3 --heads=8 --hidden=256 --lr=0.008 --patience=100 --seed=729 --epochs=2000 --runs=1 --weight_decay=5e-05 --method=Chebyshev --Tmax=20 --k=6 --cuda
