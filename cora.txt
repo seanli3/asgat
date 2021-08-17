@@ -1,1 +1,0 @@
---dataset=Cora --order=14 --dropout=0.1 --heads=1 --hidden=128 --lr=0.005 --patience=100 --seed=729 --epochs=2000 --runs=10 --weight_decay=1e-4 --cuda --k=15 --method=chebyshev
