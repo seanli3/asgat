@@ -1,10 +1,19 @@
-# PyTorch Geometric Benchmark Suite
-
-This benchmark suite provides evaluation scripts for **[semi-supervised node classification](https://github.com/rusty1s/pytorch_geometric/tree/master/benchmark/citation)**, **[graph classification](https://github.com/rusty1s/pytorch_geometric/tree/master/benchmark/kernel)**, and **[point cloud classification](https://github.com/rusty1s/pytorch_geometric/tree/master/benchmark/points)** and **[runtimes](https://github.com/rusty1s/pytorch_geometric/tree/master/benchmark/runtime)** in order to compare various methods in homogeneous evaluation scenarios.
-In particular, we take care to avoid to perform hyperparameter and model selection on the test set and instead use an additional validation set.
+# ASGAT
 
 ## Installation
+### Conda
+```sh
+conda env create -f environment.yml
+```
+### pip
+1. Install [PyTorch 1.9+](https://pytorch.org/get-started/locally/)
+2. Install [PyTorch Geometrics](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)
+3. `pip install -r requirements.txt`
 
+## Run
+```sh
+./run.sh
 ```
-$ python setup.py install
-```
+
+### Attribution
+Some of the benchmark implimentations are forked from https://github.com/rusty1s/pytorch_geometric/tree/master/benchmark
